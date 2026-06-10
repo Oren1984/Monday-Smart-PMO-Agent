@@ -1,10 +1,9 @@
-"""RAG Retrieval Evaluation Lab — Streamlit UI"""
+"""Smart PMO Agent — Streamlit UI"""
 from __future__ import annotations
 
 import os
 import sys
 
-# Ensure project root is on the path regardless of CWD
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 if _ROOT not in sys.path:
@@ -12,622 +11,823 @@ if _ROOT not in sys.path:
 
 import streamlit as st
 
-# Must be the first Streamlit call
 st.set_page_config(
-    page_title="RAG Engineering Lab",
+    page_title="Smart PMO Agent",
     layout="wide",
     initial_sidebar_state="expanded",
-    page_icon="🧪",
+    page_icon="📋",
 )
 
 from src.core.config import settings
-from src.core.exceptions import (
-    ConfigurationError,
-    EvaluationError,
-    RAGLabError,
-    ValidationError,
+from src.integrations import get_monday_client
+from src.okr.okr_analyzer import analyze_okr_alignment, get_okr_avg_kr_progress
+from src.reporting.export import (
+    project_health_markdown,
+    risk_registry_csv,
+    sprint_summary_csv,
 )
-from src.observability.health import check_health
-from src.observability.metrics import METRICS
-from src.security.file_validation import validate_file
-from src.security.prompt_safety import check_prompt_safety
+from src.pmo.capacity_tracker import analyze_capacity
+from src.pmo.project_health import analyze_project_health
+from src.pmo.sprint_analyzer import analyze_sprint
+from src.reporting.report_builder import build_pmo_context
+from src.risk.risk_detector import get_open_risks, summarize_risk_level
 
-# Create runtime directories on startup
-for _d in [
-    settings.data_dir,
-    os.path.join(settings.data_dir, "raw"),
-    os.path.join(settings.data_dir, "ground_truth"),
-    settings.vector_db_dir,
-    settings.results_dir,
-]:
-    os.makedirs(_d, exist_ok=True)
+# ── Colour palette ─────────────────────────────────────────────────────────
+_HEALTH_COLOUR = {"Green": "#22c55e", "Yellow": "#f59e0b", "Red": "#ef4444"}
+_LEVEL_COLOUR = {
+    "Critical": "#ef4444", "High": "#f97316",
+    "Medium": "#f59e0b", "Low": "#22c55e",
+}
+_STATUS_COLOUR = {
+    "Done": "#22c55e", "In Progress": "#3b82f6",
+    "Stuck": "#f97316", "Blocked": "#ef4444", "To Do": "#94a3b8",
+}
+_OKR_COLOUR = {"On Track": "#22c55e", "At Risk": "#f59e0b", "Off Track": "#ef4444"}
 
-# ══════════════════════════════════════════════════════════════════════════
-# Session state
-# ══════════════════════════════════════════════════════════════════════════
-
-_SS_DEFAULTS: dict = {
-    "pipeline": None,
-    "index_built": False,
-    "last_build_summary": None,
-    "last_retrieval_results": [],
-    "last_evaluation_summary": None,
-    "last_evaluation_results": [],
-    "built_with_config": {},
+# ── Session state defaults ──────────────────────────────────────────────────
+_SS_DEFAULTS = {
+    "pmo_data": None,
+    "health": None,
+    "sprint_report": None,
+    "capacity": None,
+    "okr_report": None,
+    "risks": None,
+    "pmo_context": None,
+    "pmo_pipeline": None,
+    "methodology_indexed": False,
+    "chat_history": [],
+    "selected_sprint": None,
 }
 for _k, _v in _SS_DEFAULTS.items():
     if _k not in st.session_state:
         st.session_state[_k] = _v
 
 
-# ══════════════════════════════════════════════════════════════════════════
-# Factory helpers
-# ══════════════════════════════════════════════════════════════════════════
+# ── Data loading ────────────────────────────────────────────────────────────
 
-def create_embedding_provider(provider_name: str, model_name: str):
-    if provider_name == "mock":
-        from src.embeddings.mock_embedding_provider import MockEmbeddingProvider
-        return MockEmbeddingProvider()
-    if provider_name == "huggingface":
-        from src.embeddings.huggingface_provider import HuggingFaceEmbeddingProvider
-        return HuggingFaceEmbeddingProvider(model_name=model_name)
-    if provider_name == "openai":
-        from src.embeddings.openai_provider import OpenAIEmbeddingProvider
-        return OpenAIEmbeddingProvider(api_key=settings.openai_api_key, model_name=model_name)
-    if provider_name == "gemini":
-        from src.embeddings.gemini_provider import GeminiEmbeddingProvider
-        return GeminiEmbeddingProvider(api_key=settings.gemini_api_key, model_name=model_name)
-    raise ConfigurationError(f"Unknown embedding provider: {provider_name!r}")
-
-
-def create_vector_store(store_name: str):
-    if store_name == "chroma":
-        from src.vectorstores.chroma_store import ChromaVectorStore
-        return ChromaVectorStore(
-            persist_directory=os.path.join(settings.vector_db_dir, "chroma"),
-        )
-    if store_name == "faiss":
-        from src.vectorstores.faiss_store import FaissVectorStore
-        return FaissVectorStore(
-            persist_directory=os.path.join(settings.vector_db_dir, "faiss"),
-        )
-    raise ConfigurationError(f"Unknown vector store: {store_name!r}")
-
-
-def create_chunker(strategy: str, chunk_size: int, chunk_overlap: int):
-    if strategy == "recursive":
-        from src.chunking.recursive_chunker import RecursiveChunker
-        return RecursiveChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    if strategy == "fixed":
-        from src.chunking.fixed_chunker import FixedChunker
-        return FixedChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    raise ConfigurationError(f"Unknown chunking strategy: {strategy!r}")
-
-
-def create_reranker(_use_reranker: bool):
-    # v1: PassThroughReranker only. CrossEncoderReranker support in a future version.
-    from src.retrieval.reranker import PassThroughReranker
-    return PassThroughReranker()
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# UI helpers
-# ══════════════════════════════════════════════════════════════════════════
-
-def _save_upload(uploaded_file) -> str:
-    """Validate and persist an uploaded Streamlit file under data/raw/."""
-    raw_dir = os.path.join(settings.data_dir, "raw")
-    os.makedirs(raw_dir, exist_ok=True)
-    content = uploaded_file.getvalue()
-    safe_name = validate_file(
-        uploaded_file.name, len(content), max_upload_mb=settings.max_upload_mb,
+@st.cache_data(show_spinner=False)
+def load_pmo_data():
+    client = get_monday_client(
+        data_source=settings.pmo_data_source,
+        data_dir=settings.monday_demo_dir,
+        api_token=settings.monday_api_token,
+        workspace_id=settings.monday_workspace_id,
     )
-    save_path = os.path.join(raw_dir, safe_name)
-    with open(save_path, "wb") as f:
-        f.write(content)
-    return save_path
-
-
-def _cfg_snapshot(provider, model, store, strategy, csize, coverlap) -> dict:
     return {
-        "provider": provider, "model": model, "store": store,
-        "strategy": strategy, "chunk_size": int(csize), "chunk_overlap": int(coverlap),
+        "boards": client.get_boards(),
+        "tasks": client.get_tasks(),
+        "sprints": client.get_sprints(),
+        "risks": client.get_risks(),
+        "okrs": client.get_okrs(),
+        "source_label": client.source_label,
     }
 
 
-def _cfg_changed(cfg: dict) -> bool:
-    return (
-        bool(st.session_state.index_built)
-        and st.session_state.built_with_config != cfg
+def run_analysis(data: dict, sprint_name: str | None = None):
+    tasks = data["tasks"]
+    sprints = data["sprints"]
+    risks = data["risks"]
+    okrs = data["okrs"]
+
+    # Active sprint
+    active_sprint = next((s for s in sprints if s.status == "active"), None)
+    if sprint_name:
+        active_sprint = next((s for s in sprints if s.name == sprint_name), active_sprint)
+
+    health = analyze_project_health(tasks, active_sprint)
+    sprint_report = analyze_sprint(active_sprint, tasks) if active_sprint else None
+    capacity = analyze_capacity(tasks)
+    okr_report = analyze_okr_alignment(okrs, tasks)
+    open_risks = get_open_risks(risks)
+
+    pmo_context = build_pmo_context(
+        health=health,
+        sprint_report=sprint_report,
+        risks=open_risks,
+        okr_report=okr_report,
+        capacity=capacity,
+        active_sprint=active_sprint,
+        all_tasks=tasks,
     )
 
+    return health, sprint_report, capacity, okr_report, open_risks, pmo_context
 
-def _fmt_size(n_bytes: int) -> str:
-    if n_bytes < 1_048_576:
-        return f"{n_bytes / 1024:.1f} KB"
-    return f"{n_bytes / 1_048_576:.2f} MB"
+
+# ── PMO Pipeline (AI Q&A) ───────────────────────────────────────────────────
+
+def get_pmo_pipeline():
+    if st.session_state.pmo_pipeline is None:
+        from src.chunking.recursive_chunker import RecursiveChunker
+        from src.embeddings.mock_embedding_provider import MockEmbeddingProvider
+        from src.pipeline.pmo_pipeline import PMOPipeline
+        from src.retrieval.reranker import PassThroughReranker
+        from src.vectorstores.chroma_store import ChromaVectorStore
+
+        provider_name = settings.embedding_provider
+        openai_key = settings.openai_api_key
+
+        if provider_name == "huggingface":
+            from src.embeddings.huggingface_provider import HuggingFaceEmbeddingProvider
+            provider = HuggingFaceEmbeddingProvider(model_name=settings.embedding_model)
+        elif provider_name == "openai" and openai_key:
+            from src.embeddings.openai_provider import OpenAIEmbeddingProvider
+            provider = OpenAIEmbeddingProvider(api_key=openai_key, model_name=settings.embedding_model)
+        else:
+            provider = MockEmbeddingProvider()
+
+        store = ChromaVectorStore(
+            persist_directory=os.path.join(settings.vector_db_dir, "chroma")
+        )
+        chunker = RecursiveChunker(chunk_size=settings.chunk_size,
+                                   chunk_overlap=settings.chunk_overlap)
+        reranker = PassThroughReranker()
+
+        pipeline = PMOPipeline(
+            embedding_provider=provider,
+            vector_store=store,
+            chunker=chunker,
+            reranker=reranker,
+            openai_api_key=openai_key,
+        )
+        st.session_state.pmo_pipeline = pipeline
+
+    return st.session_state.pmo_pipeline
 
 
 # ══════════════════════════════════════════════════════════════════════════
 # Page header
 # ══════════════════════════════════════════════════════════════════════════
 
-st.markdown(
-    """
-    <div style="
-        padding: 0.75rem 0 0.5rem;
-        border-bottom: 2px solid #e0e6ed;
-        margin-bottom: 0.75rem;
-    ">
-        <h1 style="margin:0; font-size:1.9rem; line-height:1.25;">
-            🧪 RAG Engineering Lab
-        </h1>
-        <p style="margin:0.3rem 0 0; font-size:1.0rem; color:#333;">
-            <strong>Oren Salami</strong> | 🧠 AI Systems Engineer
-        </p>
-        <p style="margin:0.1rem 0 0; color:#888; font-size:0.85rem;">
-            Intelligent Systems &bull; AI Agents &bull; Data &amp; Automation
-        </p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<div style="padding:0.6rem 0 0.4rem; border-bottom:2px solid #e2e8f0; margin-bottom:0.5rem;">
+  <h1 style="margin:0; font-size:1.8rem; color:#1e293b;">
+    📋 Smart PMO Agent
+  </h1>
+  <p style="margin:0.2rem 0 0; font-size:0.95rem; color:#475569;">
+    AI-powered project visibility for technology teams
+  </p>
+</div>
+""", unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════════════════
-# Sidebar
-# ══════════════════════════════════════════════════════════════════════════
+# ── Load data ───────────────────────────────────────────────────────────────
+with st.spinner("Loading project data…"):
+    try:
+        pmo_data = load_pmo_data()
+        st.session_state.pmo_data = pmo_data
+    except Exception as e:
+        st.error(f"Failed to load Monday demo data: {e}")
+        st.stop()
 
+# ── Sidebar ──────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.header("⚙️ Configuration")
+    st.markdown("""
+    <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:6px;
+                padding:0.6rem 0.75rem; margin-bottom:0.75rem; font-size:0.82rem;">
+      <strong>📡 Data Source</strong><br>
+      Using local Monday-style demo data<br>
+      <span style="color:#64748b;">Real Monday API integration is a future extension.</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-    mock_mode = st.toggle(
-        "Mock Mode",
-        value=True,
-        key="sw_mock_mode",
-        help="Deterministic mock embeddings — no API key required.",
+    st.subheader("Sprint Selector")
+    sprint_names = [s.name for s in pmo_data["sprints"]]
+    active_default = next(
+        (i for i, s in enumerate(pmo_data["sprints"]) if s.status == "active"), 0
     )
-
-    # ── Embedding ──────────────────────────────────────────────────────────
-    st.subheader("Embedding")
-    provider_name: str = st.selectbox(
-        "Provider",
-        ["mock", "huggingface", "openai", "gemini"],
-        index=0,
-        key="sw_provider",
+    selected_sprint = st.selectbox(
+        "View sprint", sprint_names, index=active_default, key="sprint_select"
     )
-
-    if mock_mode and provider_name != "mock":
-        st.caption("ℹ️ Mock Mode is ON — consider switching to the 'mock' provider.")
-
-    _model_map = {
-        "mock":        ["mock-384"],
-        "huggingface": [
-            "sentence-transformers/all-MiniLM-L6-v2",
-            "BAAI/bge-base-en-v1.5",
-            "intfloat/e5-base",
-        ],
-        "openai":  ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"],
-        "gemini":  ["models/embedding-001", "models/text-embedding-004"],
-    }
-    model_name: str = st.selectbox(
-        "Model", _model_map.get(provider_name, ["mock-384"]), key="sw_model",
-    )
-
-    # API key guard for paid providers
-    if provider_name == "openai" and not settings.openai_api_key:
-        st.error("OPENAI_API_KEY not set. Add it to .env or use mock mode.")
-    if provider_name == "gemini" and not settings.gemini_api_key:
-        st.error("GEMINI_API_KEY not set. Add it to .env or use mock mode.")
-
-    # ── Vector store ───────────────────────────────────────────────────────
-    st.subheader("Vector Store")
-    store_name: str = st.selectbox("Store", ["chroma", "faiss"], key="sw_store")
-
-    # ── Chunking ───────────────────────────────────────────────────────────
-    st.subheader("Chunking")
-    chunk_strategy: str = st.selectbox(
-        "Strategy", ["recursive", "fixed"], key="sw_strategy",
-    )
-    chunk_size: int = int(
-        st.number_input("Chunk Size", min_value=200, max_value=1500, value=500,
-                        step=50, key="sw_chunk_size")
-    )
-    chunk_overlap: int = int(
-        st.number_input("Chunk Overlap", min_value=0, max_value=300, value=100,
-                        step=10, key="sw_chunk_overlap")
-    )
-    _overlap_invalid = chunk_overlap >= chunk_size
-    if _overlap_invalid:
-        st.error("Chunk overlap must be less than chunk size.")
-
-    # ── Retrieval ──────────────────────────────────────────────────────────
-    st.subheader("Retrieval")
-    top_k: int = int(
-        st.number_input("Top-K", min_value=1, max_value=20, value=5, key="sw_top_k")
-    )
-
-    # ── Options ────────────────────────────────────────────────────────────
-    st.subheader("Options")
-    use_reranker: bool = st.toggle(
-        "Use Reranker", value=False, key="sw_use_reranker",
-        help="v1: PassThroughReranker (no-op). Full cross-encoder in a future version.",
-    )
-    redact_pii: bool = st.toggle("PII Redaction", value=False, key="sw_redact_pii")
-
-    # ── Config change warning ──────────────────────────────────────────────
-    _cfg = _cfg_snapshot(
-        provider_name, model_name, store_name, chunk_strategy, chunk_size, chunk_overlap,
-    )
-    if _cfg_changed(_cfg):
-        st.warning("⚠️ Config changed since last build — rebuild the index.")
-
-    # ── Index status ───────────────────────────────────────────────────────
-    if st.session_state.index_built and st.session_state.last_build_summary:
-        _bs = st.session_state.last_build_summary
-        st.success(
-            f"✅ Index ready  \n"
-            f"{_bs.get('chunks_created','?')} chunks · "
-            f"{_bs.get('embedding_provider','?')} / {_bs.get('vector_store','?')}"
-        )
 
     st.divider()
-    st.subheader("Actions")
 
-    build_clicked: bool = st.button(
-        "🔨 Build Index",
-        type="primary",
-        key="btn_build",
-        use_container_width=True,
-        disabled=_overlap_invalid,
-    )
-    clear_clicked: bool = st.button(
-        "🗑️ Clear / Reset",
-        key="btn_clear",
-        use_container_width=True,
-    )
+    if st.button("🔄 Refresh Analysis", use_container_width=True):
+        load_pmo_data.clear()
+        for k in ["health", "sprint_report", "capacity", "okr_report",
+                  "risks", "pmo_context", "methodology_indexed"]:
+            st.session_state[k] = None if k != "methodology_indexed" else False
+        st.rerun()
 
-    # Handle clear immediately (before tabs render)
-    if clear_clicked:
-        if st.session_state.pipeline is not None:
-            try:
-                st.session_state.pipeline.clear()
-            except Exception:
-                pass
-        for _k, _v in _SS_DEFAULTS.items():
-            st.session_state[_k] = _v
-        st.toast("Pipeline cleared.", icon="🗑️")
+    st.divider()
+
+    st.subheader("AI Assistant Mode")
+    if settings.openai_api_key:
+        st.success("OpenAI key detected — full AI responses enabled.")
+    else:
+        st.info("No OpenAI key — using smart demo responses.\nAdd OPENAI_API_KEY to .env for full AI.")
+
+# ── Run analysis ─────────────────────────────────────────────────────────────
+try:
+    (health, sprint_report, capacity, okr_report,
+     open_risks, pmo_context) = run_analysis(pmo_data, selected_sprint)
+    st.session_state.update({
+        "health": health, "sprint_report": sprint_report,
+        "capacity": capacity, "okr_report": okr_report,
+        "risks": open_risks, "pmo_context": pmo_context,
+    })
+except Exception as e:
+    st.error(f"Analysis error: {e}")
+    st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════
 # Tabs
 # ══════════════════════════════════════════════════════════════════════════
 
-tab_ingest, tab_retrieval, tab_eval, tab_status = st.tabs(
-    ["📥 Ingestion", "🔍 Retrieval Demo", "📊 Evaluation", "🩺 System Status"]
-)
+tab_dashboard, tab_sprint, tab_risks, tab_okr, tab_capacity, tab_ai, tab_about = st.tabs([
+    "📊 Executive Dashboard",
+    "🏃 Sprint Health",
+    "⚠️ Risks & Blockers",
+    "🎯 OKR Alignment",
+    "👥 Capacity",
+    "🤖 AI PMO Assistant",
+    "ℹ️ About",
+])
 
 # ─────────────────────────────────────────────────────────────────────────
-# Tab 1 — Ingestion
+# TAB 1 — Executive Dashboard
 # ─────────────────────────────────────────────────────────────────────────
+with tab_dashboard:
+    st.subheader("Executive Dashboard")
 
-with tab_ingest:
-    st.subheader("Document Ingestion")
-    st.caption(
-        "Upload a document, adjust the pipeline configuration in the sidebar, "
-        "then click **🔨 Build Index**."
-    )
+    # Health badge
+    hc = _HEALTH_COLOUR.get(health.health_score, "#94a3b8")
+    st.markdown(f"""
+    <div style="display:inline-block; background:{hc}22; border:2px solid {hc};
+                border-radius:8px; padding:0.4rem 1rem; margin-bottom:0.75rem;">
+      <span style="color:{hc}; font-weight:700; font-size:1.05rem;">
+        Project Health: {health.health_score}
+      </span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption(health.summary)
 
-    uploaded_file = st.file_uploader(
-        "Upload document",
-        type=["pdf", "txt", "md", "html", "htm"],
-        key="file_uploader",
-        help="Supported formats: PDF, TXT, Markdown, HTML, HTM",
-    )
+    # Top metrics
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Total Tasks", health.total_tasks)
+    c2.metric("Done", health.done,
+              delta=f"{round(health.done/health.total_tasks*100)}%" if health.total_tasks else "0%")
+    c3.metric("Stuck + Blocked", health.stuck + health.blocked,
+              delta=f"-{health.stuck + health.blocked}" if health.stuck + health.blocked else None,
+              delta_color="inverse")
+    c4.metric("Overdue", len(health.overdue_tasks),
+              delta_color="inverse" if health.overdue_tasks else "normal")
+    c5.metric("Open Risks", len(open_risks))
 
-    if uploaded_file is not None:
-        _content = uploaded_file.getvalue()
-        _c1, _c2, _c3 = st.columns(3)
-        _c1.metric("Filename", uploaded_file.name)
-        _c2.metric("Size", _fmt_size(len(_content)))
-        _c3.metric("Type", os.path.splitext(uploaded_file.name)[1].lower() or "—")
+    # Sprint progress
+    if sprint_report:
+        st.divider()
+        sc1, sc2, sc3 = st.columns(3)
+        sc1.metric("Active Sprint", sprint_report.sprint.name)
+        sc2.metric("Sprint Progress",
+                   f"{health.sprint_progress_pct:.0f}%",
+                   help="Completed story points / Planned story points")
+        sc3.metric("Sprint Health", sprint_report.health)
+        st.progress(min(health.sprint_progress_pct / 100, 1.0),
+                    text=f"{sprint_report.sprint.completed_points} / "
+                         f"{sprint_report.sprint.planned_points} pts")
+        if sprint_report.sprint.goal:
+            st.caption(f"Sprint Goal: {sprint_report.sprint.goal}")
 
-    # ── Build Index handler ────────────────────────────────────────────────
-    if build_clicked:
-        if uploaded_file is None:
-            st.error("Please upload a document before building the index.")
-            st.toast("No file uploaded.", icon="⚠️")
-        elif _overlap_invalid:
-            st.error("Fix chunk overlap (must be less than chunk size) before building.")
-        else:
-            with st.spinner("Building index — please wait…"):
-                try:
-                    # Clear previous pipeline/store for a clean rebuild
-                    if st.session_state.pipeline is not None:
-                        try:
-                            st.session_state.pipeline.clear()
-                        except Exception:
-                            pass
+    # Status distribution
+    st.divider()
+    _c1, _c2 = st.columns(2)
+    with _c1:
+        st.subheader("Task Status Distribution")
+        status_data = {
+            "Done": health.done,
+            "In Progress": health.in_progress,
+            "Stuck": health.stuck,
+            "Blocked": health.blocked,
+            "To Do": health.todo,
+        }
+        for status, count in status_data.items():
+            pct = (count / health.total_tasks * 100) if health.total_tasks else 0
+            col = _STATUS_COLOUR.get(status, "#94a3b8")
+            st.markdown(
+                f'<div style="display:flex; align-items:center; margin:4px 0;">'
+                f'<span style="width:110px; font-size:0.85rem;">{status}</span>'
+                f'<div style="flex:1; background:#f1f5f9; border-radius:4px; height:18px; margin:0 8px;">'
+                f'<div style="background:{col}; width:{pct:.0f}%; height:100%; '
+                f'border-radius:4px;"></div></div>'
+                f'<span style="font-size:0.85rem; width:40px; text-align:right;">{count}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-                    saved_path = _save_upload(uploaded_file)
-                    _provider = create_embedding_provider(provider_name, model_name)
-                    _store = create_vector_store(store_name)
-                    _chunker = create_chunker(chunk_strategy, chunk_size, chunk_overlap)
-                    _reranker = create_reranker(use_reranker)
+    with _c2:
+        st.subheader("OKR Status")
+        for okr in okr_report.okrs:
+            avg_progress = get_okr_avg_kr_progress(okr)
+            col = _OKR_COLOUR.get(okr.status, "#94a3b8")
+            st.markdown(
+                f'<div style="margin:6px 0; padding:6px 10px; background:#f8fafc; '
+                f'border-left:4px solid {col}; border-radius:4px;">'
+                f'<strong>{okr.id}</strong> — {okr.status} '
+                f'<span style="color:#64748b; font-size:0.85rem;">({avg_progress:.0f}% avg KR)</span>'
+                f'<br><span style="font-size:0.83rem; color:#475569;">{okr.objective[:60]}…</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-                    from src.pipeline.rag_pipeline import RAGPipeline
-                    _pipeline = RAGPipeline(_provider, _store, _chunker, _reranker)
-                    _summary = _pipeline.build_index(saved_path, redact_pii=redact_pii)
+    # Top blockers
+    if health.open_blockers:
+        st.divider()
+        st.subheader("Active Blockers")
+        for t in health.open_blockers[:4]:
+            lc = _LEVEL_COLOUR.get(t.priority, "#94a3b8")
+            st.markdown(
+                f'<div style="padding:8px 12px; border-left:4px solid {lc}; '
+                f'background:#fff7ed; margin:4px 0; border-radius:4px; font-size:0.88rem;">'
+                f'<strong>{t.name}</strong> — {t.owner}<br>'
+                f'<span style="color:#92400e;">{t.blocker}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-                    st.session_state.pipeline = _pipeline
-                    st.session_state.index_built = True
-                    st.session_state.last_build_summary = _summary
-                    st.session_state.built_with_config = _cfg
-                    st.toast(
-                        f"Index built! {_summary['chunks_created']} chunks.", icon="✅"
-                    )
-
-                except ValidationError as exc:
-                    st.error(f"Validation error: {exc}")
-                    METRICS.record_error(str(exc))
-                    st.toast("Validation error — see Ingestion tab.", icon="❌")
-                except RAGLabError as exc:
-                    st.error(f"Pipeline error: {exc}")
-                    st.toast("Build failed — see Ingestion tab.", icon="❌")
-                except Exception as exc:
-                    st.error(f"Unexpected error ({type(exc).__name__}): {exc}")
-                    METRICS.record_error(str(exc))
-                    st.toast("Build failed — see Ingestion tab.", icon="❌")
-
-    # ── Build summary ──────────────────────────────────────────────────────
-    if st.session_state.last_build_summary:
-        _s = st.session_state.last_build_summary
-        st.success("✅ Index is ready for querying.")
-        st.subheader("Last Build Summary")
-        _sc1, _sc2, _sc3 = st.columns(3)
-        _sc1.metric("Doc ID", _s.get("doc_id", "—"))
-        _sc2.metric("Chunks Created", _s.get("chunks_created", 0))
-        _sc3.metric(
-            "Provider / Store",
-            f"{_s.get('embedding_provider','?')} / {_s.get('vector_store','?')}",
+    # Export
+    st.divider()
+    with st.expander("📤 Export Health Report", expanded=False):
+        st.caption("Download a Markdown summary of the current project health, sprint, risks, and OKRs.")
+        md_report = project_health_markdown(
+            health=health,
+            sprint_report=sprint_report,
+            risks=open_risks,
+            okr_report=okr_report,
         )
-        with st.expander("Source path"):
-            st.code(_s.get("source", ""), language=None)
-    elif not build_clicked:
-        st.info(
-            "Upload a document and click **🔨 Build Index** in the sidebar "
-            "to start the ingestion pipeline."
+        st.download_button(
+            label="⬇️ Download Health Report (.md)",
+            data=md_report,
+            file_name="pmo_health_report.md",
+            mime="text/markdown",
+            key="dl_health_md",
+            use_container_width=True,
         )
+        with st.expander("Preview report"):
+            st.markdown(md_report)
+
 
 # ─────────────────────────────────────────────────────────────────────────
-# Tab 2 — Retrieval Demo
+# TAB 2 — Sprint Health
 # ─────────────────────────────────────────────────────────────────────────
+with tab_sprint:
+    st.subheader("Sprint Health")
+    if not sprint_report:
+        st.info("No active sprint found in the current dataset.")
+    else:
+        sr = sprint_report
+        hc = {"Healthy": "#22c55e", "Needs Attention": "#f59e0b", "At Risk": "#ef4444"}
+        col = hc.get(sr.health, "#94a3b8")
 
-with tab_retrieval:
-    st.subheader("Retrieval Demo")
-    st.caption(
-        "Retrieve the most relevant document chunks for a natural-language query. "
-        "No LLM generation — this project returns retrieved chunks only."
-    )
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Sprint", sr.sprint.name)
+        m2.metric("Velocity", f"{sr.velocity:.0%}",
+                  help="Story points completed / planned")
+        m3.metric("Health", sr.health)
+        m4.metric("Carryover Risk", f"{len(sr.carryover_risk_tasks)} tasks")
 
-    _query_input = st.text_area(
-        "Query",
-        placeholder="e.g. What chunking strategies are available?",
-        height=90,
-        key="query_input",
-    )
-    _run_retrieval = st.button("🔍 Run Retrieval", type="primary", key="btn_run_retrieval")
+        st.caption(f"Goal: {sr.sprint.goal}")
+        st.progress(min(sr.velocity, 1.0))
+        st.caption(f"{sr.sprint.completed_points} of {sr.sprint.planned_points} story points complete · "
+                   f"{sr.sprint.start_date} → {sr.sprint.end_date}")
 
-    if _run_retrieval:
-        if not st.session_state.index_built or st.session_state.pipeline is None:
-            st.warning("Build an index first (go to the **📥 Ingestion** tab).")
-        elif not _query_input or not _query_input.strip():
-            st.warning("Enter a non-empty query.")
-        else:
-            _safety = check_prompt_safety(_query_input)
-            if _safety.is_suspicious:
-                st.warning(
-                    f"⚠️ {_safety.warning}  \n"
-                    f"Matched: {', '.join(_safety.matched_patterns)}"
-                )
-            with st.spinner("Retrieving…"):
-                try:
-                    _chunks = st.session_state.pipeline.query(
-                        _query_input.strip(), top_k
-                    )
-                    st.session_state.last_retrieval_results = _chunks
-                except ValidationError as exc:
-                    st.error(f"Validation error: {exc}")
-                except RAGLabError as exc:
-                    st.error(f"Retrieval error: {exc}")
-                except Exception as exc:
-                    st.error(f"Unexpected error: {exc}")
-                    METRICS.record_error(str(exc))
+        st.divider()
+        _tc1, _tc2 = st.columns(2)
 
-    _ret_results = st.session_state.last_retrieval_results
-    if _ret_results:
-        st.success(f"Retrieved **{len(_ret_results)}** chunk(s).")
-        for _chunk in _ret_results:
-            _rank = _chunk.rank or "—"
-            _score_str = f"{_chunk.score:.4f}" if _chunk.score is not None else "—"
-            _src = _chunk.metadata.get("file_name") or _chunk.metadata.get("source", "")
-            _hdr = f"Rank {_rank}  |  Score: {_score_str}  |  Doc: {_chunk.doc_id}"
-            if _src:
-                _hdr += f"  |  {os.path.basename(str(_src))}"
-            with st.expander(_hdr, expanded=(_chunk.rank == 1)):
-                st.caption(f"Chunk ID: `{_chunk.chunk_id}`")
-                st.write(_chunk.text)
-    elif _run_retrieval and st.session_state.index_built:
-        st.info("No results returned for this query.")
-    elif not st.session_state.index_built:
-        st.info("Build an index first, then enter a query here.")
+        with _tc1:
+            st.subheader("Task Breakdown")
+            breakdown = [
+                ("Done", sr.tasks_done, "#22c55e"),
+                ("In Progress", sr.tasks_in_progress, "#3b82f6"),
+                ("Stuck", sr.tasks_stuck, "#f97316"),
+                ("Blocked", sr.tasks_blocked, "#ef4444"),
+                ("To Do", sr.tasks_todo, "#94a3b8"),
+            ]
+            for label, task_list, color in breakdown:
+                with st.expander(f"{label} ({len(task_list)})", expanded=(label in ("Stuck", "Blocked"))):
+                    for t in task_list:
+                        b_text = f" · ⛔ {t.blocker[:60]}…" if t.blocker else ""
+                        st.markdown(
+                            f'<div style="padding:4px 0; font-size:0.85rem; border-bottom:1px solid #f1f5f9;">'
+                            f'<span style="color:{color};">●</span> '
+                            f'<strong>{t.name}</strong> — {t.owner} ({t.story_points}pts){b_text}'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
 
-# ─────────────────────────────────────────────────────────────────────────
-# Tab 3 — Evaluation
-# ─────────────────────────────────────────────────────────────────────────
-
-with tab_eval:
-    st.subheader("Retrieval Evaluation")
-    st.caption(
-        "Score retrieval quality against the ground-truth question set using "
-        "Recall@K, Precision@K, MRR, and nDCG@K."
-    )
-
-    _gt_path = os.path.join(settings.data_dir, "ground_truth", "questions.json")
-    _ground_truth = None
-
-    try:
-        from src.evaluation.ground_truth_loader import load_ground_truth
-        _ground_truth = load_ground_truth(_gt_path)
-        st.info(
-            f"📋 Loaded **{len(_ground_truth)}** ground-truth questions "
-            f"from `{_gt_path}`."
-        )
-    except EvaluationError as exc:
-        st.error(f"Could not load ground truth: {exc}")
-    except Exception as exc:
-        st.error(f"Unexpected error loading ground truth: {exc}")
-
-    _run_eval = st.button("📊 Run Evaluation", type="primary", key="btn_run_eval")
-
-    if _run_eval:
-        if not st.session_state.index_built or st.session_state.pipeline is None:
-            st.warning("Build an index first (go to the **📥 Ingestion** tab).")
-        elif _ground_truth is None:
-            st.error("Ground truth could not be loaded — cannot evaluate.")
-        else:
-            with st.spinner("Running evaluation…"):
-                try:
-                    from src.evaluation.evaluator import RetrievalEvaluator
-                    _evaluator = RetrievalEvaluator(st.session_state.pipeline)
-                    _eval_results, _eval_summary = _evaluator.evaluate(
-                        _ground_truth, top_k=top_k
-                    )
-                    _csv_path = os.path.join(
-                        settings.results_dir, "evaluation_results.csv"
-                    )
-                    _evaluator.save_results_csv(_eval_results, path=_csv_path)
-                    st.session_state.last_evaluation_results = _eval_results
-                    st.session_state.last_evaluation_summary = _eval_summary
-                    st.toast("Evaluation complete.", icon="📊")
-                except EvaluationError as exc:
-                    st.error(f"Evaluation error: {exc}")
-                except RAGLabError as exc:
-                    st.error(f"Pipeline error: {exc}")
-                except Exception as exc:
-                    st.error(f"Unexpected error: {exc}")
-                    METRICS.record_error(str(exc))
-
-    _eval_summary = st.session_state.last_evaluation_summary
-    _eval_results = st.session_state.last_evaluation_results
-
-    if _eval_summary:
-        st.success("Evaluation complete.")
-        st.subheader("Summary Metrics")
-        _em1, _em2, _em3, _em4 = st.columns(4)
-        _em1.metric("Recall@K", f"{_eval_summary.get('avg_recall_at_k', 0):.4f}")
-        _em2.metric("Precision@K", f"{_eval_summary.get('avg_precision_at_k', 0):.4f}")
-        _em3.metric("MRR", f"{_eval_summary.get('avg_mrr', 0):.4f}")
-        _em4.metric("nDCG@K", f"{_eval_summary.get('avg_ndcg_at_k', 0):.4f}")
-        _eqa, _eqb = st.columns(2)
-        _eqa.metric("Questions", _eval_summary.get("total_questions", 0))
-        _eqb.metric("Errors", _eval_summary.get("error_count", 0))
-
-    if _eval_results:
-        st.subheader("Per-Question Results")
-        try:
-            import pandas as pd
-            _df = pd.DataFrame([
-                {
-                    "Question": r["question"][:65] + ("…" if len(r["question"]) > 65 else ""),
-                    "Recall@K":    round(r["recall_at_k"], 4),
-                    "Precision@K": round(r["precision_at_k"], 4),
-                    "MRR":         round(r["mrr"], 4),
-                    "nDCG@K":      round(r["ndcg_at_k"], 4),
-                    "Error":       r.get("error") or "",
-                }
-                for r in _eval_results
-            ])
-            st.dataframe(_df, use_container_width=True)
-        except ImportError:
-            for _r in _eval_results:
-                st.write(
-                    f"- {_r['question'][:65]}: "
-                    f"recall={_r['recall_at_k']:.4f}, mrr={_r['mrr']:.4f}"
+        with _tc2:
+            st.subheader("Team Load (Story Points)")
+            for owner, pts in sr.team_load.items():
+                is_bottleneck = owner in sr.bottleneck_owners
+                icon = " ⚠️" if is_bottleneck else ""
+                blocked = capacity.owner_blocked_counts.get(owner, 0)
+                b_str = f" · {blocked} blocked" if blocked else ""
+                st.markdown(
+                    f'<div style="display:flex; align-items:center; margin:5px 0;">'
+                    f'<span style="width:90px; font-size:0.85rem;">{owner}{icon}</span>'
+                    f'<div style="flex:1; background:#f1f5f9; border-radius:4px; height:20px; margin:0 8px;">'
+                    f'<div style="background:{"#f97316" if is_bottleneck else "#3b82f6"}; '
+                    f'width:{min(pts*4, 100)}%; height:100%; border-radius:4px;"></div></div>'
+                    f'<span style="font-size:0.85rem; width:70px;">{pts} pts{b_str}</span>'
+                    f'</div>',
+                    unsafe_allow_html=True,
                 )
 
-        _csv_path = os.path.join(settings.results_dir, "evaluation_results.csv")
-        if os.path.exists(_csv_path):
-            with open(_csv_path, "rb") as _f:
-                st.download_button(
-                    label="⬇️ Download Results CSV",
-                    data=_f,
-                    file_name="evaluation_results.csv",
-                    mime="text/csv",
-                    key="btn_dl_csv",
-                )
+        if sr.retro_points:
+            st.divider()
+            st.subheader("Retrospective Talking Points")
+            for point in sr.retro_points:
+                st.markdown(f"- {point}")
 
-    elif not _run_eval:
-        st.info(
-            "Click **📊 Run Evaluation** to score retrieval quality against "
-            "the ground-truth questions."
+        # Previous sprint comparison
+        prev_sprints = [s for s in pmo_data["sprints"] if s.status == "completed"]
+        if prev_sprints:
+            st.divider()
+            st.subheader("Previous Sprint Comparison")
+            prev = prev_sprints[-1]
+            prev_vel = round(prev.completed_points / prev.planned_points, 2) if prev.planned_points else 0
+            pc1, pc2, pc3 = st.columns(3)
+            pc1.metric(prev.name, f"{prev_vel:.0%} velocity",
+                       delta=f"{(sr.velocity - prev_vel)*100:+.0f}pp vs current")
+            pc2.metric("Prev Points", f"{prev.completed_points}/{prev.planned_points}")
+            pc3.metric("Prev Retro Notes", len(prev.retro_notes))
+            if prev.retro_notes:
+                with st.expander("Previous sprint retro notes"):
+                    for note in prev.retro_notes:
+                        st.markdown(f"- {note}")
+
+    # Sprint export
+    st.divider()
+    with st.expander("📤 Export Sprint Summary", expanded=False):
+        st.caption("Download a CSV of all tasks in the current sprint with status, owner, and points.")
+        csv_data = sprint_summary_csv(sprint_report)
+        st.download_button(
+            label="⬇️ Download Sprint Summary (.csv)",
+            data=csv_data,
+            file_name=f"{sprint_report.sprint.name.replace(' ', '_')}_summary.csv",
+            mime="text/csv",
+            key="dl_sprint_csv",
+            use_container_width=True,
         )
 
+
 # ─────────────────────────────────────────────────────────────────────────
-# Tab 4 — System Status
+# TAB 3 — Risks & Blockers
 # ─────────────────────────────────────────────────────────────────────────
+with tab_risks:
+    st.subheader("Risks & Blockers")
 
-with tab_status:
-    st.subheader("System Status")
+    top_level = summarize_risk_level(open_risks)
+    rc = _LEVEL_COLOUR.get(top_level, "#94a3b8")
+    st.markdown(
+        f'<div style="display:inline-block; background:{rc}22; border:2px solid {rc}; '
+        f'border-radius:8px; padding:0.35rem 1rem; margin-bottom:0.75rem;">'
+        f'<span style="color:{rc}; font-weight:700;">Overall Risk Level: {top_level}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
-    _sc1, _sc2 = st.columns(2)
-
-    with _sc1:
-        st.subheader("Active Configuration")
-        st.metric("Embedding Provider", provider_name)
-        _model_display = model_name if len(model_name) <= 38 else model_name[:35] + "…"
-        st.metric("Embedding Model", _model_display)
-        st.metric("Vector Store", store_name)
-        st.metric("Chunking Strategy", chunk_strategy)
-        st.metric("Chunk Size", chunk_size)
-        st.metric("Chunk Overlap", chunk_overlap)
-        st.metric("Top-K", top_k)
-        st.metric("Mock Mode", "ON" if mock_mode else "OFF")
-        st.metric("Reranker", "ON (PassThrough)" if use_reranker else "OFF")
-        st.metric("PII Redaction", "ON" if redact_pii else "OFF")
-
-    with _sc2:
-        st.subheader("Pipeline State")
-        _idx_label = "✅ READY" if st.session_state.index_built else "⏳ NOT BUILT"
-        st.metric("Index Status", _idx_label)
-        if st.session_state.last_build_summary:
-            _bs2 = st.session_state.last_build_summary
-            st.metric("Last Doc ID", _bs2.get("doc_id", "—"))
-            st.metric("Last Chunks", _bs2.get("chunks_created", 0))
-
-        st.subheader("Observability Metrics")
-        _m = METRICS.to_dict()
-        st.metric("Documents Loaded", _m["documents_loaded_total"])
-        st.metric("Chunks Created",   _m["chunks_created_total"])
-        st.metric("Queries Run",      _m["query_count_total"])
-        st.metric("Errors",           _m["error_count_total"])
-        st.metric("Embed Latency (s)",    f"{_m['embedding_latency_seconds']:.4f}")
-        st.metric("Retrieval Latency (s)", f"{_m['retrieval_latency_seconds']:.4f}")
-        st.metric("Rerank Latency (s)",    f"{_m['rerank_latency_seconds']:.4f}")
-        if _m["last_error"]:
-            st.error(f"Last Error: {_m['last_error'][:120]}")
-        else:
-            st.caption("No errors recorded.")
+    r1, r2, r3, r4 = st.columns(4)
+    for level, col_widget in [("Critical", r1), ("High", r2), ("Medium", r3), ("Low", r4)]:
+        count = sum(1 for r in open_risks if r.level == level)
+        col_widget.metric(level, count)
 
     st.divider()
-    st.subheader("Health Check")
-    _health = check_health(settings)
-    _overall_icon = "✅" if _health.healthy else "⚠️"
-    st.write(f"**Overall**: {_overall_icon} {'Healthy' if _health.healthy else 'Degraded'}")
+    for risk in open_risks:
+        lc = _LEVEL_COLOUR.get(risk.level, "#94a3b8")
+        with st.expander(f"[{risk.level}] {risk.title}", expanded=(risk.level == "Critical")):
+            rc1, rc2, rc3 = st.columns(3)
+            rc1.markdown(f"**ID:** {risk.id}")
+            rc2.markdown(f"**Owner:** {risk.owner}")
+            rc3.markdown(f"**Affected OKR:** {risk.affected_okr or '—'}")
+            st.markdown(f"**Description:** {risk.description}")
+            st.markdown(
+                f'<div style="background:#f0fdf4; border-left:3px solid #22c55e; '
+                f'padding:8px 12px; border-radius:4px; margin-top:6px; font-size:0.88rem;">'
+                f'<strong>Mitigation:</strong> {risk.mitigation}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-    _hcheck_keys = [k for k in _health.checks]
-    _hcols = st.columns(min(len(_hcheck_keys), 4))
-    for _hi, _hk in enumerate(_hcheck_keys):
-        _icon = "✅" if _health.checks[_hk] else "❌"
-        _hcols[_hi % len(_hcols)].metric(
-            f"{_icon} {_hk}",
-            _health.details.get(_hk, "—"),
+    # Blocker detail table
+    st.divider()
+    st.subheader("Blocked & Stuck Tasks")
+    all_blocked = [
+        t for t in pmo_data["tasks"]
+        if t.status in ("Blocked", "Stuck") and t.blocker
+    ]
+    if all_blocked:
+        import pandas as pd
+        df = pd.DataFrame([
+            {
+                "ID": t.id, "Task": t.name[:55], "Status": t.status,
+                "Priority": t.priority, "Owner": t.owner,
+                "Sprint": t.sprint or "—", "Blocker": (t.blocker or "")[:80],
+            }
+            for t in all_blocked
+        ])
+        st.dataframe(df, use_container_width=True, hide_index=True)
+    else:
+        st.success("No blocked or stuck tasks at this time.")
+
+    # Risk export
+    st.divider()
+    with st.expander("📤 Export Risk Registry", expanded=False):
+        st.caption("Download a CSV of all open risks with severity, mitigation, and OKR impact.")
+        csv_risks = risk_registry_csv(open_risks)
+        st.download_button(
+            label="⬇️ Download Risk Registry (.csv)",
+            data=csv_risks,
+            file_name="risk_registry.csv",
+            mime="text/csv",
+            key="dl_risks_csv",
+            use_container_width=True,
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TAB 4 — OKR Alignment
+# ─────────────────────────────────────────────────────────────────────────
+with tab_okr:
+    st.subheader("OKR Alignment")
+    st.caption(okr_report.summary)
+
+    o1, o2, o3 = st.columns(3)
+    o1.metric("OKRs Tracked", len(okr_report.okrs))
+    o2.metric("At Risk / Off Track", len(okr_report.at_risk_okrs))
+    o3.metric("Unaligned Work", f"{okr_report.unaligned_task_pct:.0f}%",
+              help="Active tasks with no OKR link")
+
+    st.divider()
+    for okr in okr_report.okrs:
+        avg = get_okr_avg_kr_progress(okr)
+        oc = _OKR_COLOUR.get(okr.status, "#94a3b8")
+        contributing_tasks = okr_report.okr_task_map.get(okr.id, [])
+
+        with st.expander(
+            f"{okr.id} — {okr.objective[:65]} · {okr.status} · {avg:.0f}% avg",
+            expanded=(okr.status != "On Track"),
+        ):
+            oc1, oc2, oc3 = st.columns(3)
+            oc1.markdown(f"**Owner:** {okr.owner}")
+            oc2.markdown(f"**Quarter:** {okr.quarter}")
+            oc3.markdown(f"**Contributing Tasks:** {len(contributing_tasks)}")
+
+            st.markdown("**Key Results:**")
+            for kr in okr.key_results:
+                krc = _OKR_COLOUR.get(kr.status, "#94a3b8")
+                pct = kr.progress_pct
+                # Invert for metrics where lower = better (e.g., churn %, time)
+                if "churn" in kr.description.lower() or "days" in kr.unit.lower() or "minutes" in kr.unit.lower():
+                    raw_pct = pct
+                    if kr.target > 0:
+                        improvement = (kr.current - kr.target)
+                        baseline_range = abs(kr.current - kr.target) + 0.001
+                        pct = max(0, min(100, 100 - (improvement / (kr.current - kr.target + 0.001) * 100)))
+                st.markdown(
+                    f'<div style="margin:6px 0; padding:8px 12px; background:#f8fafc; border-radius:6px;">'
+                    f'<div style="display:flex; justify-content:space-between; margin-bottom:4px;">'
+                    f'<span style="font-size:0.87rem;"><strong>{kr.id}</strong>: {kr.description}</span>'
+                    f'<span style="color:{krc}; font-size:0.85rem; font-weight:600;">{kr.status}</span>'
+                    f'</div>'
+                    f'<div style="background:#e2e8f0; border-radius:4px; height:8px;">'
+                    f'<div style="background:{krc}; width:{kr.progress_pct:.0f}%; height:100%; border-radius:4px;"></div>'
+                    f'</div>'
+                    f'<div style="font-size:0.8rem; color:#64748b; margin-top:3px;">'
+                    f'Current: {kr.current} {kr.unit} → Target: {kr.target} {kr.unit}'
+                    f'</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+
+            if contributing_tasks:
+                with st.expander(f"Contributing sprint tasks ({len(contributing_tasks)})"):
+                    for t in contributing_tasks:
+                        sc = _STATUS_COLOUR.get(t.status, "#94a3b8")
+                        st.markdown(
+                            f'<span style="color:{sc};">●</span> {t.name} — {t.owner} ({t.status})',
+                            unsafe_allow_html=True,
+                        )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TAB 5 — Capacity
+# ─────────────────────────────────────────────────────────────────────────
+with tab_capacity:
+    st.subheader("Team Capacity & Workload")
+
+    cap = capacity
+    cc1, cc2, cc3 = st.columns(3)
+    cc1.metric("Team Size", len(cap.owner_task_counts))
+    cc2.metric("Overloaded", len(cap.overloaded_owners))
+    cc3.metric("Total Active Tasks", sum(cap.owner_task_counts.values()))
+
+    if cap.overloaded_owners:
+        st.warning(f"⚠️ Overloaded team members: {', '.join(cap.overloaded_owners)}")
+
+    st.divider()
+    st.subheader("Workload Per Team Member")
+
+    max_pts = max(cap.owner_point_totals.values(), default=1)
+
+    for owner in cap.owner_task_counts:
+        tasks_count = cap.owner_task_counts[owner]
+        pts = cap.owner_point_totals.get(owner, 0)
+        blocked = cap.owner_blocked_counts.get(owner, 0)
+        is_overloaded = owner in cap.overloaded_owners
+        bar_pct = int((pts / max_pts) * 100) if max_pts > 0 else 0
+        bar_col = "#ef4444" if is_overloaded else "#3b82f6"
+        flag = " ⚠️" if is_overloaded else ""
+
+        st.markdown(
+            f'<div style="padding:10px 14px; background:#f8fafc; border-radius:8px; '
+            f'margin:6px 0; border-left:4px solid {bar_col};">'
+            f'<div style="display:flex; justify-content:space-between; margin-bottom:6px;">'
+            f'<strong>{owner}{flag}</strong>'
+            f'<span style="font-size:0.85rem; color:#64748b;">'
+            f'{tasks_count} tasks · {pts} pts · {blocked} blocked'
+            f'</span>'
+            f'</div>'
+            f'<div style="background:#e2e8f0; border-radius:4px; height:10px;">'
+            f'<div style="background:{bar_col}; width:{bar_pct}%; height:100%; border-radius:4px;"></div>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    # Per-owner task drill-down
+    st.divider()
+    st.subheader("Task Drill-Down by Owner")
+    owner_select = st.selectbox("Select team member", list(cap.owner_task_counts.keys()))
+    owner_tasks = [t for t in pmo_data["tasks"] if t.owner == owner_select and t.status != "Done"]
+    if owner_tasks:
+        for t in owner_tasks:
+            sc = _STATUS_COLOUR.get(t.status, "#94a3b8")
+            b_str = f" · ⛔ {t.blocker[:60]}" if t.blocker else ""
+            st.markdown(
+                f'<div style="padding:6px 10px; border-left:3px solid {sc}; '
+                f'background:#f8fafc; margin:4px 0; border-radius:4px; font-size:0.85rem;">'
+                f'<strong>{t.name}</strong> [{t.status}] · {t.story_points}pts'
+                f'{b_str}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+    else:
+        st.success(f"{owner_select} has no active tasks.")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TAB 6 — AI PMO Assistant
+# ─────────────────────────────────────────────────────────────────────────
+with tab_ai:
+    st.subheader("AI PMO Assistant")
+    st.caption(
+        "Ask questions about project status, sprint health, risks, OKRs, "
+        "team workload, or what to focus on."
+    )
+
+    # Initialize pipeline and index methodology docs once
+    if not st.session_state.methodology_indexed:
+        with st.spinner("Indexing PM methodology documents…"):
+            try:
+                pipeline = get_pmo_pipeline()
+                result = pipeline.index_methodology_docs(settings.methodology_docs_dir)
+                st.session_state.methodology_indexed = True
+                st.session_state.pmo_pipeline = pipeline
+                st.toast(
+                    f"Indexed {result['docs_indexed']} methodology docs "
+                    f"({result['total_chunks']} chunks).",
+                    icon="📚",
+                )
+            except Exception as e:
+                st.warning(f"Methodology indexing skipped: {e}")
+                st.session_state.methodology_indexed = True
+
+    # Suggested questions
+    st.markdown("**Suggested questions:**")
+    suggestions = [
+        "What is the current project status?",
+        "Which tasks are blocking the sprint?",
+        "Which OKRs are at risk?",
+        "Who is overloaded on the team?",
+        "What should I focus on this week?",
+        "What should be discussed in the retrospective?",
+    ]
+    scols = st.columns(3)
+    for i, suggestion in enumerate(suggestions):
+        if scols[i % 3].button(suggestion, key=f"sug_{i}", use_container_width=True):
+            st.session_state.chat_history.append({"role": "user", "content": suggestion})
+            st.rerun()
+
+    st.divider()
+
+    # Chat history
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Chat input
+    user_input = st.chat_input("Ask the PMO Agent…")
+    if user_input:
+        st.session_state.chat_history.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing…"):
+                try:
+                    pipeline = st.session_state.pmo_pipeline or get_pmo_pipeline()
+                    answer_obj = pipeline.query(
+                        user_input,
+                        st.session_state.pmo_context or {},
+                        top_k=settings.top_k,
+                    )
+                    st.markdown(answer_obj.answer)
+                    if answer_obj.sources:
+                        st.caption(
+                            f"Methodology sources: {', '.join(answer_obj.sources)}"
+                        )
+                    mode_label = {
+                        "mock": "Smart demo response",
+                        "openai": "OpenAI GPT-4o-mini",
+                        "gemini": "Gemini",
+                    }.get(answer_obj.mode, answer_obj.mode)
+                    st.caption(f"Mode: {mode_label}")
+                    st.session_state.chat_history.append(
+                        {"role": "assistant", "content": answer_obj.answer}
+                    )
+                except Exception as e:
+                    error_msg = f"Error generating response: {e}"
+                    st.error(error_msg)
+                    st.session_state.chat_history.append(
+                        {"role": "assistant", "content": error_msg}
+                    )
+
+    if st.session_state.chat_history:
+        if st.button("Clear conversation", key="clear_chat"):
+            st.session_state.chat_history = []
+            st.rerun()
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TAB 7 — About
+# ─────────────────────────────────────────────────────────────────────────
+with tab_about:
+    st.subheader("About Smart PMO Agent")
+
+    st.markdown("""
+**Smart PMO Agent** is an AI-powered PMO assistant for technology project teams.
+It analyzes Monday-style project data and PM methodology knowledge to give project managers
+real-time visibility into project health, risks, sprint performance, OKR alignment, and team workload.
+
+---
+
+### Data Source
+
+This project uses **realistic Monday-style local demo data** loaded from `data/monday_demo/`.
+The data represents a fictional tech company (TechCo) building a SaaS product (FlowHQ)
+with an active sprint, 6 team members, 3 OKRs, and real-looking project complexity.
+
+**Real Monday API integration is a planned future extension.**
+The architecture includes a clean adapter layer (`src/integrations/`) that allows switching
+from mock data to a live Monday workspace by changing one environment setting:
+```
+PMO_DATA_SOURCE=monday_api
+```
+No other code changes are required.
+
+---
+
+### Five Core Flows
+
+| Flow | What it analyzes | Output |
+|------|-----------------|--------|
+| **Project Visibility** | Tasks, statuses, due dates | Health score, blockers, sprint progress |
+| **Risk Detection** | Blocked tasks, OKR gaps, capacity | Risk registry with mitigations |
+| **Sprint Insights** | Velocity, task distribution, team load | Sprint health, retro talking points |
+| **OKR Alignment** | Task-to-OKR mapping | At-risk OKRs, unaligned work |
+| **AI PMO Q&A** | All above + methodology docs | Natural language PM answers |
+
+---
+
+### Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| UI | Streamlit |
+| Integration | MondayMockClient (adapter pattern) |
+| PMO Analysis | Python (custom engine) |
+| AI Q&A | RAG — ChromaDB + OpenAI / Mock |
+| Embeddings | Mock (default) · HuggingFace · OpenAI |
+| Vector Store | ChromaDB |
+| Config | python-dotenv + Pydantic Settings |
+| Packaging | Docker |
+
+---
+
+### Project Category
+
+**Technology Project Management + AI Tools**
+
+This project demonstrates practical AI application for project management —
+not pure AI/ML engineering. It shows how a PM can use AI-powered analysis to
+improve project visibility, detect risks earlier, and make better sprint decisions.
+    """)

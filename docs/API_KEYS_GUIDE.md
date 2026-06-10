@@ -1,143 +1,64 @@
-# API Keys & Environment Setup Guide — RAG Engineering Lab
+# Setup Guide — Smart PMO Agent
 
-This guide explains how to configure local environment variables and optional API keys for running the project safely.
+## Default Mode: No API Keys Required
 
-## Required Variables
-
-The project supports local/demo execution without paid API keys.
-
-For offline-safe local usage, use:
-
-- `MOCK_MODE=true`
-- `EMBEDDING_PROVIDER=mock`
-
-In this mode, real external API keys are optional and can be left empty.
-
-Core non-secret runtime variables used by the project include:
-
-- `APP_ENV`
-- `LOG_LEVEL`
-- `MOCK_MODE`
-- `EMBEDDING_PROVIDER`
-- `EMBEDDING_MODEL`
-- `VECTOR_STORE`
-- `CHUNK_STRATEGY`
-- `CHUNK_SIZE`
-- `CHUNK_OVERLAP`
-- `TOP_K`
-- `USE_RERANKER`
-- `DATA_DIR`
-- `VECTOR_DB_DIR`
-- `RESULTS_DIR`
-- `MAX_UPLOAD_MB`
-
-## Optional API Keys
-
-The repository currently uses the following optional external API key variables:
-
-- `OPENAI_API_KEY` (required only when `EMBEDDING_PROVIDER=openai`)
-- `GEMINI_API_KEY` (required only when `EMBEDDING_PROVIDER=gemini`)
-
-No other API key variables from common provider lists are used in runtime configuration.
-
-## Local .env Setup
-
-From the repository root, create a local `.env` file:
+The Smart PMO Agent runs fully offline by default. Copy `.env.example` to `.env` and run — no account, token, or API key is needed.
 
 ```bash
 cp .env.example .env
+streamlit run app/streamlit_app.py
 ```
 
-For Windows PowerShell:
+---
 
-```powershell
-Copy-Item .env.example .env
+## Optional: OpenAI (for full AI Q&A)
+
+Adding an OpenAI key enables AI-generated PMO answers instead of the rule-based demo mode.
+
+1. Get a key from: https://platform.openai.com/api-keys
+2. Add to `.env`:
+   ```
+   OPENAI_API_KEY=sk-...
+   ```
+3. Optionally switch embedding provider:
+   ```
+   EMBEDDING_PROVIDER=openai
+   EMBEDDING_MODEL=text-embedding-3-small
+   ```
+
+**Cost:** The AI assistant uses `gpt-4o-mini`. A typical demo session costs less than $0.01.
+
+---
+
+## Optional: HuggingFace (free semantic embeddings)
+
+For better methodology doc retrieval without any API key:
+```
+EMBEDDING_PROVIDER=huggingface
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 ```
 
-Then edit `.env` locally for your machine.
+Downloads a ~90MB model on first use. No API key required.
 
-Never commit real secrets.
+---
 
-## Example .env Structure
+## Optional: Gemini
 
-Use placeholders only:
-
-```dotenv
-APP_ENV=local
-LOG_LEVEL=INFO
-
-MOCK_MODE=true
-EMBEDDING_PROVIDER=mock
-EMBEDDING_MODEL=mock-384
-
-VECTOR_STORE=chroma
-CHUNK_STRATEGY=recursive
-CHUNK_SIZE=500
-CHUNK_OVERLAP=100
-TOP_K=5
-USE_RERANKER=false
-
-OPENAI_API_KEY=your_openai_key_here
-GEMINI_API_KEY=your_gemini_key_here
-
-DATA_DIR=data
-VECTOR_DB_DIR=vector_db
-RESULTS_DIR=results
-MAX_UPLOAD_MB=10
+```
+GEMINI_API_KEY=<your-key>
+EMBEDDING_PROVIDER=gemini
+EMBEDDING_MODEL=models/text-embedding-004
 ```
 
-## Demo / Offline Mode
+---
 
-The project can run without paid API keys.
+## Future: Monday API (not available in v1)
 
-Recommended offline/local demo settings:
-
-```dotenv
-MOCK_MODE=true
-EMBEDDING_PROVIDER=mock
+When Monday API integration is implemented:
+```
+PMO_DATA_SOURCE=monday_api
+MONDAY_API_TOKEN=<your-token>
+MONDAY_WORKSPACE_ID=<your-workspace-id>
 ```
 
-In Streamlit, keep mock mode enabled and select the `mock` provider for deterministic local behavior.
-
-If you switch to `openai` or `gemini`, set the corresponding key in `.env`.
-
-## Security Best Practices
-
-- Never commit `.env`.
-- Keep `.env` in `.gitignore`.
-- Use GitHub Secrets for CI/CD variables.
-- Rotate keys immediately if exposed.
-- Do not paste real API keys into README, screenshots, notebooks, or docs.
-- Use placeholder values in documentation.
-
-## Troubleshooting
-
-### Missing API key
-
-- Symptom: errors like `OPENAI_API_KEY not set` or `GEMINI_API_KEY not set`.
-- Fix: add the correct key to `.env`, or switch back to mock mode.
-
-### Invalid API key
-
-- Symptom: provider authentication/authorization failures.
-- Fix: verify the key value, project/account permissions, and provider billing status.
-
-### .env file not loaded
-
-- Symptom: app behaves as if defaults are still active.
-- Fix: ensure `.env` exists at repository root and restart the app.
-
-### Wrong variable name
-
-- Symptom: key appears set but is ignored.
-- Fix: use exact names: `OPENAI_API_KEY` and `GEMINI_API_KEY`.
-
-### Wrong working directory
-
-- Symptom: relative paths or `.env` are not detected.
-- Fix: run commands from the repository root.
-
-### Docker Compose not receiving environment variables
-
-- Symptom: container does not see expected settings.
-- Fix: ensure `.env` is present before `docker compose up --build`, and recreate containers after changes.
+No changes to any other part of the system are required.

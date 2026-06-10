@@ -1,0 +1,138 @@
+[
+  {
+    "id": "OKR-1",
+    "objective": "Improve User Onboarding — reduce time-to-first-value",
+    "owner": "Oren S.",
+    "quarter": "Q2 2026",
+    "contributing_epics": ["User Onboarding", "Dashboard UX", "Product Discovery"],
+    "status": "At Risk",
+    "key_results": [
+      {
+        "id": "KR1.1",
+        "description": "Reduce time-to-first-value from 7 days to 2 days",
+        "target": 2.0,
+        "current": 4.5,
+        "unit": "days",
+        "status": "At Risk"
+      },
+      {
+        "id": "KR1.2",
+        "description": "Achieve 40% Day-30 product activation rate",
+        "target": 40.0,
+        "current": 28.0,
+        "unit": "%",
+        "status": "At Risk"
+      },
+      {
+        "id": "KR1.3",
+        "description": "Complete onboarding redesign and ship to production by June 17",
+        "target": 100.0,
+        "current": 55.0,
+        "unit": "% complete",
+        "status": "At Risk"
+      }
+    ]
+  },
+  {
+    "id": "OKR-2",
+    "objective": "Reduce Customer Churn — improve monthly retention",
+    "owner": "Dan K.",
+    "quarter": "Q2 2026",
+    "contributing_epics": ["Retention Engine"],
+    "status": "Off Track",
+    "key_results": [
+      {
+        "id": "KR2.1",
+        "description": "Increase NPS score from 28 to 42",
+        "target": 42.0,
+        "current": 31.0,
+        "unit": "score",
+        "status": "At Risk"
+      },
+      {
+        "id": "KR2.2",
+        "description": "Reduce monthly churn rate from 3.2% to 2.0%",
+        "target": 2.0,
+        "current": 2.8,
+        "unit": "% churn",
+        "status": "At Risk"
+      },
+      {
+        "id": "KR2.3",
+        "description": "Deploy churn prediction model to production",
+        "target": 100.0,
+        "current": 10.0,
+        "unit": "% complete",
+        "status": "Off Track"
+      }
+    ]
+  },
+  {
+    "id": "OKR-3",
+    "objective": "Scale Infrastructure — support 10x growth without incidents",
+    "owner": "Lior H.",
+    "quarter": "Q2 2026",
+    "contributing_epics": ["Infrastructure", "Kubernetes Migration"],
+    "status": "On Track",
+    "key_results": [
+      {
+        "id": "KR3.1",
+        "description": "Pass load benchmarks at 10x current peak traffic",
+        "target": 100.0,
+        "current": 40.0,
+        "unit": "% complete",
+        "status": "On Track"
+      },
+      {
+        "id": "KR3.2",
+        "description": "Achieve 99.9% uptime SLA across all production services",
+        "target": 99.9,
+        "current": 99.7,
+        "unit": "% uptime",
+        "status": "On Track"
+      },
+      {
+        "id": "KR3.3",
+        "description": "Reduce deployment cycle time from 45 min to 15 min",
+        "target": 15.0,
+        "current": 28.0,
+        "unit": "minutes",
+        "status": "On Track"
+      }
+    ]
+  },
+  {
+    "id": "OKR-4",
+    "objective": "Improve Team Health and Engineering Process Quality",
+    "owner": "Oren S.",
+    "quarter": "Q2 2026",
+    "contributing_epics": ["Sprint Ops", "Engineering Excellence"],
+    "status": "On Track",
+    "key_results": [
+      {
+        "id": "KR4.1",
+        "description": "Cross-train at least 2 engineers on each critical system area",
+        "target": 100.0,
+        "current": 30.0,
+        "unit": "% complete",
+        "status": "At Risk"
+      },
+      {
+        "id": "KR4.2",
+        "description": "Reduce average PR review time from 2 days to 4 hours",
+        "target": 4.0,
+        "current": 6.0,
+        "unit": "hours",
+        "status": "On Track"
+      },
+      {
+        "id": "KR4.3",
+        "description": "Achieve sprint velocity >= 75% for 3 consecutive sprints",
+        "target": 3.0,
+        "current": 1.0,
+        "unit": "sprints",
+        "status": "At Risk"
+      }
+    ]
+  }
+]

@@ -1,515 +1,225 @@
-# 🧠 RAG Engineering Lab
+# Smart PMO Agent
 
-**Oren Salami | 🧠 AI Systems Engineer**  
-Intelligent Systems • AI Agents • Data & Automation
+**Oren Salami | Technology Project Management + AI Tools**
 
-A local-first RAG retrieval evaluation system for comparing chunking strategies, embedding providers, vector stores, and retrieval quality using measurable IR metrics.
+An AI-powered PMO assistant for technology project teams. Analyzes Monday-style project data to deliver project health visibility, risk detection, sprint insights, OKR alignment analysis, and AI-powered Q&A for project managers.
 
 ---
 
-## 🧠 Project Overview
+## Project Overview
 
-The **RAG Engineering Lab** is a modular, local-first system for building and evaluating the retrieval layer of Retrieval-Augmented Generation systems.
+The **Smart PMO Agent** connects to Monday-style project data and answers the questions every PM needs answered:
 
-The project focuses on the technical backbone of RAG:
+- What is the current project status?
+- Which tasks are blocking the sprint?
+- Which OKRs are at risk?
+- Who is overloaded on the team?
+- What should I focus on this week?
+- What should we discuss in the retrospective?
 
-```text
-Ingest → Clean → Chunk → Embed → Store → Retrieve → Evaluate
+This is not a generic chatbot. It is a purpose-built PMO assistant grounded in real Agile, Scrum, Sprint Ops, OKR, and capacity management methodology.
+
+---
+
+## Monday Integration
+
+**Current version uses realistic local Monday-style demo data.**
+
+The architecture includes a clean adapter layer (`src/integrations/`) that decouples the data source from the analysis engine. Switching from demo data to a live Monday workspace requires only one configuration change:
+
+```
+PMO_DATA_SOURCE=monday_api
 ```
 
-It includes a Streamlit UI, mock-first execution mode, ChromaDB and FAISS support, multiple embedding providers, retrieval evaluation metrics, demo notebooks, Docker support, and a standalone static portfolio site.
+No other code changes are required. See `docs/architecture.md` for the full design.
 
-This is not a full LLM chat application.
-It is a retrieval quality lab designed to measure, compare, and explain how different RAG retrieval configurations behave.
-
----
-
-## 🎯 Purpose
-
-The purpose of this project is to demonstrate how to design, implement, evaluate, and present a professional RAG retrieval system.
-
-This project demonstrates:
-
-- How to build a modular RAG retrieval pipeline
-- How to compare chunking strategies
-- How to support multiple embedding providers
-- How to abstract vector stores behind a common interface
-- How to evaluate retrieval quality using ground-truth questions
-- How to run a RAG system locally without paid APIs
-- How to package the project with Docker
-- How to present a technical AI system with notebooks, documentation, and a static portfolio page
+> This project currently uses realistic Monday-style mock data instead of a live Monday account.
+> The architecture is intentionally prepared for future Monday API integration through an adapter/client layer.
+> This keeps the portfolio project lightweight while still demonstrating real PMO integration thinking.
 
 ---
 
-## 🚀 Core Capabilities
+## Five Core Flows
 
-- Local-first RAG retrieval pipeline
-- Streamlit UI with four main tabs
-- Document ingestion for PDF, TXT, Markdown, HTML, and HTM
-- Text cleaning and normalization
-- Fixed and recursive chunking strategies
-- Mock embeddings for offline deterministic execution
-- HuggingFace embedding support
-- Optional OpenAI embedding provider
-- Optional Gemini embedding provider
-- ChromaDB vector store support
-- FAISS vector store support with metadata sidecar
-- Retrieval flow with ranked chunks
-- Optional reranker interface
-- Ground-truth evaluation workflow
-- Recall@K, Precision@K, MRR, and nDCG@K metrics
-- CSV export for evaluation results
-- Security validation for files and queries
-- Prompt-safety warning layer
-- Optional PII redaction
-- Observability metrics and health checks
-- Docker Compose support
-- Demo notebooks
-- Static portfolio site
+| Flow | Input | Output |
+|------|-------|--------|
+| **Project Visibility** | Tasks, sprints, statuses, due dates | Health score, blockers, sprint progress |
+| **Risk Detection** | Blocked tasks, OKR gaps, capacity signals | Risk registry with severities and mitigations |
+| **Sprint Insights** | Sprint tasks, velocity, team distribution | Sprint health, retro talking points, bottlenecks |
+| **OKR Alignment** | Tasks with OKR links, OKR registry | At-risk objectives, unaligned work percentage |
+| **AI PMO Q&A** | Natural language question + project context | Contextual PM answer with methodology grounding |
 
 ---
 
-## 🧱 Architecture & System Design
+## Architecture
 
-The system is built around a thin orchestration layer called RAGPipeline.
-
-The pipeline owns the active embedding provider, chunker, vector store, and optional reranker. This guarantees that the same embedding provider instance is used for both indexing and querying.
-
-Raw Document
-    ↓
-Document Loader
-    ↓
-Text Cleaner
-    ↓
-Chunker
-    ↓
-Embedding Provider
-    ↓
-Vector Store
-    ↓
-Retriever
-    ↓
-Evaluation Engine
-
-Main layers:
-app/
-└── Streamlit UI
-
-src/core/
-└── Config, contracts, DTOs, exceptions, logging
-
-src/ingestion/
-└── Document loading, cleaning, metadata extraction
-
-src/chunking/
-└── FixedChunker and RecursiveChunker
-
-src/embeddings/
-└── Mock, HuggingFace, OpenAI, Gemini providers
-
-src/vectorstores/
-└── ChromaDB and FAISS implementations
-
-src/retrieval/
-└── Retriever, reranker, hybrid retriever stub
-
-src/pipeline/
-└── RAGPipeline orchestrator
-
-src/evaluation/
-└── Metrics, ground truth loader, evaluator
-
-src/security/
-└── File validation, query validation, prompt safety, PII redaction
-
-src/observability/
-└── Metrics, tracing, health checks
-
-The architecture is intentionally modular so that each component can be replaced without rewriting the full system.
-
----
-
-## 🛠️ Tech Stack
-
-Layer	            Technologies
-Language	      Python 3.11
-UI	              Streamlit
-Pipeline	      Custom modular RAGPipeline
-Ingestion	      PyPDF, BeautifulSoup
-Chunking	      FixedChunker, RecursiveChunker
-Embeddings	      Mock, SentenceTransformers, OpenAI, Gemini
-Vector Stores	ChromaDB, FAISS
-Evaluation	      Recall@K, Precision@K, MRR, nDCG@K
-Data Handling	Pandas, JSON, CSV
-Config	      python-dotenv, Pydantic Settings
-Observability	Custom METRICS singleton, timing, health checks
-Security	      File validation, query validation, prompt safety, PII redaction
-Packaging	      Docker, Docker Compose
-Notebooks	      Jupyter notebooks
-Static Site	      HTML, CSS, Vanilla JavaScript
-Testing	      Pytest, smoke checks, E2E mock-mode validation
-
----
-
-## 📦 Repository Structure
-
-rag-retrieval-evaluation-lab/
-├── app/
-│   └── streamlit_app.py
-├── data/
-│   ├── ground_truth/
-│   │   └── questions.json
-│   ├── raw/
-│   └── processed/
-├── docs/
-├── notebooks/
-│   ├── rag_retrieval_demo.ipynb
-│   └── rag_evaluation_experiments.ipynb
-├── results/
-├── src/
-│   ├── chunking/
-│   ├── core/
-│   ├── embeddings/
-│   ├── evaluation/
-│   ├── ingestion/
-│   ├── observability/
-│   ├── pipeline/
-│   ├── retrieval/
-│   ├── security/
-│   └── vectorstores/
-├── static-site/
-│   ├── index.html
-│   ├── styles.css
-│   ├── app.js
-│   └── README.md
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-├── vector_db/
-│   ├── chroma/
-│   └── faiss/
-├── .env.example
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-└── README.md
-
----
-
-## 🚀 How to Run
-
-Clone the repository:
-
-```bash
-git clone https://github.com/Oren1984/rag-retrieval-evaluation-lab.git
-cd rag-retrieval-evaluation-lab
+```
+data/monday_demo/*.json
+        ↓
+src/integrations/monday_mock_client.py  ← Active (adapter pattern)
+src/integrations/monday_api_client.py   ← Future skeleton
+        ↓
+src/pmo/  src/risk/  src/okr/  src/reporting/
+        ↓
+src/pipeline/pmo_pipeline.py  ←  RAG + AI Q&A layer
+        ↓
+app/streamlit_app.py  ← 7-tab PMO dashboard
 ```
 
-Create a virtual environment:
+---
 
+## How to Run
+
+**Clone and install:**
 ```bash
+git clone https://github.com/Oren1984/smart-pmo-agent.git
+cd smart-pmo-agent
 python -m venv .venv
-```
-
-Activate it:
-
-# Windows
-```bash
-.venv\Scripts\activate
-```
-
-# macOS / Linux
-```bash
-source .venv/bin/activate
-```
-
-Install dependencies:
-
-```bash
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate     # macOS / Linux
 pip install -r requirements.txt
-```
-
-Create an environment file:
-
-```bash
 cp .env.example .env
 ```
 
-See [docs/API_KEYS_GUIDE.md](docs/API_KEYS_GUIDE.md) for API key and environment setup.
-
-Run the Streamlit app:
-
+**Run the Streamlit UI:**
 ```bash
 streamlit run app/streamlit_app.py
 ```
 
-Default URL:
+Open: http://localhost:8501
 
-http://localhost:8501
+No API key, Monday account, or external service is required.
 
-If port 8501 is busy:
-
-```bash
-streamlit run app/streamlit_app.py --server.port 8511
-```
-
-Then open:
-
-http://localhost:8511
-
----
-
-## 🐳 Docker
-
-Build and run with Docker Compose:
-
+**Run with Docker:**
 ```bash
 docker compose up --build
 ```
 
-To stop:
+Open: http://localhost:8511
+
+---
+
+## Streamlit UI Tabs
+
+| Tab | Contents | Export |
+|-----|---------|--------|
+| Executive Dashboard | Health score, status distribution, sprint progress, OKR summary, blockers | Health Report (.md) |
+| Sprint Health | Velocity, task breakdown, team load, retro talking points | Sprint Summary (.csv) |
+| Risks & Blockers | Risk registry by severity, blocked task detail table | Risk Registry (.csv) |
+| OKR Alignment | Per-OKR KR progress, contributing tasks, unaligned work | — |
+| Capacity / Workload | Per-owner task and point distribution, overload detection | — |
+| AI PMO Assistant | Natural language Q&A — demo mode (no key) or OpenAI | — |
+| About | Project explanation, architecture, demo guide | — |
+
+---
+
+## AI PMO Assistant
+
+The AI assistant works in two modes:
+
+| Mode | When | Quality |
+|------|------|---------|
+| **Demo mode** (default) | No OpenAI key — fully offline | Smart rule-based answers from live project data |
+| **AI mode** | `OPENAI_API_KEY` set in `.env` | Full AI answers grounded in methodology docs + project data |
+
+Both modes answer questions about project status, blockers, OKRs, capacity, sprint health, and retrospective preparation.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| UI | Streamlit |
+| Integration | Adapter pattern (mock / Monday API) |
+| PMO Analysis | Python (custom engine) |
+| AI Q&A | RAG — ChromaDB + OpenAI / rule-based |
+| Embeddings | Mock (default) · HuggingFace · OpenAI |
+| Vector Store | ChromaDB |
+| Config | Pydantic Settings + python-dotenv |
+| Packaging | Docker + Docker Compose |
+| Language | Python 3.11 |
+
+---
+
+## Demo Data
+
+The project ships with a realistic Monday-style demo dataset for a fictional company **TechCo** building a SaaS product **FlowHQ**:
+
+| Entity | Count | Details |
+|--------|-------|---------|
+| Boards | 2 | Product Development, Platform & Infrastructure |
+| Tasks | 40 | Across 4 sprints + backlog, 8 team members, 4 OKRs |
+| Sprints | 4 | Sprints 5–8 (1 active, 2 completed, 1 planned) |
+| OKRs | 4 | Onboarding (At Risk), Churn (Off Track), Infrastructure (On Track), Team Health (On Track) |
+| Risks | 8 | 1 Critical, 3 High, 3 Medium, 1 Low |
+| Team | 8 | Yael M., Dan K., Oren S., Maya R., Lior H., Tali G., Ron A., Noa T. |
+
+All data is local, fictional, and requires no account or internet connection.
+
+---
+
+## Export Reports
+
+Three export options are available directly from the Streamlit dashboard:
+
+| Export | Tab | Format |
+|--------|-----|--------|
+| Project Health Report | Executive Dashboard | Markdown (.md) |
+| Sprint Summary | Sprint Health | CSV (.csv) |
+| Risk Registry | Risks & Blockers | CSV (.csv) |
+
+All exports are local — no data leaves your machine.
+
+---
+
+## Running Tests
 
 ```bash
-docker compose down
+pytest                          # full suite (59 tests)
+pytest tests/unit/              # unit tests only
+pytest tests/integration/       # integration tests
+pytest tests/e2e/               # end-to-end flow
+pytest --cov=src                # with coverage
 ```
 
-Runtime folders are mounted:
-data/
-vector_db/
-results/
+All tests run in mock mode — no API key or Monday account required.
 
 ---
 
-## 🧪 Evaluation Workflow
-
-The evaluation layer measures retrieval quality against ground-truth questions.
-
-Default ground truth file:
-
-data/ground_truth/questions.json
-
-Evaluation flow:
-
-1. Build an index from a document
-2. Load ground-truth questions
-3. Run each question through the retriever
-4. Compare retrieved doc IDs against relevant doc IDs
-5. Compute IR metrics
-6. Export results to CSV
-
-Metrics:
-
-Metric	      Meaning
-Recall@K	      Did the relevant document appear in the top-K results?
-Precision@K	      How many of the top-K results were relevant?
-MRR	            How early did the first relevant result appear?
-nDCG@K	      How good was the ranking quality compared to the ideal order?
-
-Output:
-
-results/evaluation_results.csv
-
----
-
-## 📓 Demo Notebooks
-
-The project includes two educational notebooks:
-
-Notebook	Purpose
-notebooks/rag_retrieval_demo.ipynb	End-to-end retrieval pipeline walkthrough in mock mode
-notebooks/rag_evaluation_experiments.ipynb	Ground-truth evaluation workflow and metric explanation
-
-Run notebooks from the repository root:
-jupyter notebook
-
-Both notebooks run in mock mode by default and do not require OpenAI or Gemini API keys.
-
----
-
-## 🌐 Static Portfolio Site
-
-The repository includes a standalone static portfolio page:
-
-static-site/
-
-Run locally:
+## Static Portfolio Site
 
 ```bash
 cd static-site
 python -m http.server 8000
 ```
 
-Open:
-
-http://localhost:8000
-
-The static site is built with:
-
-HTML + CSS + Vanilla JavaScript
-
-No framework, no build step, and no npm install are required.
-
-The static site presents:
-
-- Project overview
-- Architecture
-- Capabilities
-- Evaluation metrics
-- Security and observability
-- Testing and reliability
-- Tech stack
-- Project boundaries
+Open: http://localhost:8000
 
 ---
 
-## 🧪 Testing
+## Documentation
 
-Run tests:
-
-```bash
-pytest
-```
-
-Run specific layers:
-pytest tests/unit/
-pytest tests/integration/
-pytest tests/e2e/
-
-Run coverage if configured:
-
-```bash
-pytest --cov=src
-```
-
-The preferred validation path is mock mode:
-
-MOCK_MODE=true
-EMBEDDING_PROVIDER=mock
-
-This allows tests and smoke checks to run without paid API keys or external services.
+| Document | Contents |
+|----------|---------|
+| `docs/architecture.md` | System design and data flow |
+| `docs/project_plan.md` | Goals, scope, implementation phases |
+| `docs/methodology_alignment.md` | Agile, Scrum, OKR, sprint ops mapping |
+| `docs/demo_flow.md` | How to demo and present the project |
+| `docs/testing_strategy.md` | Testing approach and coverage |
+| `docs/known_limitations.md` | What is demo data, what is not, what is next |
+| `docs/API_KEYS_GUIDE.md` | Setup guide for all configuration options |
 
 ---
 
-## 📊 Observability
+## Project Category
 
-The project includes lightweight local observability.
+**Technology Project Management + AI Tools**
 
-Tracked metrics include:
-
-- Documents loaded
-- Chunks created
-- Query count
-- Error count
-- Embedding latency
-- Retrieval latency
-- Rerank latency
-- Last error
-- Selected embedding provider
-- Selected vector store
-
-The Streamlit System Status tab displays runtime metrics and readiness information.
-
-Observability modules:
-
-src/observability/metrics.py
-src/observability/tracing.py
-src/observability/health.py
+This project demonstrates practical AI application for project management — not pure AI/ML engineering. It shows how to build a PMO assistant that helps a PM improve project visibility, detect risks earlier, align work to business goals, and answer natural language questions about project status.
 
 ---
 
-## 🔐 Security
+## License
 
-The system includes practical local security controls.
-
-Security features:
-
-- File extension validation
-- Upload size limit
-- Safe filename handling
-- Path traversal prevention
-- Query validation
-- Top-K validation
-- Chunk size and overlap validation
-- Prompt-safety warning patterns
-- Optional PII redaction
-- API keys loaded from environment variables only
-- No secrets hardcoded in source code
-
-This is not an enterprise security product, but it demonstrates secure defaults and safe local execution practices.
-
----
-
-## 🧩 What This Project Demonstrates
-
-This project demonstrates my ability to:
-
-- Design modular AI retrieval systems
-- Build a local-first RAG architecture
-- Separate ingestion, chunking, embeddings, storage, retrieval, and evaluation
-- Work with vector stores such as ChromaDB and FAISS
-- Implement provider-based architecture
-- Build mock-safe systems that do not depend on paid APIs
-- Add retrieval evaluation with standard IR metrics
-- Build a practical Streamlit interface
-- Add observability and validation controls
-- Package systems with Docker
-- Create portfolio-ready documentation, notebooks, and a static project site
-
----
-
-## 📌 Current Status
-
-Status: Portfolio-ready / Local-first / Tested through mock-mode E2E validation
-
-Completed:
-
-- Core RAG pipeline
-- Streamlit UI
-- Mock embedding provider
-- ChromaDB vector store
-- FAISS vector store
-- HuggingFace provider support
-- Optional OpenAI/Gemini provider support
-- Evaluation engine
-- Demo notebooks
-- Static portfolio site
-- Docker build support
-- Documentation suite
-
-The project is ready for portfolio presentation and technical review.
-
----
-
-## ⚠️ Known Limitations
-
-- Mock embeddings are deterministic but not semantic
-- Evaluation with mock embeddings validates plumbing, not semantic retrieval quality
-- HuggingFace models may download on first use
-- FAISS installation may vary by platform
-- Docker requires Docker Desktop or a running Docker daemon
-- No multi-user authentication
-- No LLM generation in v1
-- No chat interface
-- No agents, MCP, or CrewAI
-- No Kubernetes or Terraform deployment in v1
-- No cloud deployment automation in v1
-
----
-
-## 🏁 Final Note
-
-This project is part of my AI Engineering portfolio.
-
-It focuses on the retrieval layer of RAG systems and demonstrates how to build a measurable, modular, local-first retrieval evaluation lab.
-
-The goal is not to create another generic chatbot.
-The goal is to show how retrieval quality can be engineered, tested, evaluated, and presented clearly.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
-
----
+MIT License. See the LICENSE file for details.

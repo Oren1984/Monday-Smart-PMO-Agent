@@ -8,7 +8,16 @@
       "Bash(python *)",
       "Bash(streamlit run *)",
       "Bash(kill %1)",
-      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ORENS\\\\rag-retrieval-evaluation-lab\\\\src\" -Recurse -File | Select-Object FullName | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"C:\\\\Users\\\\ORENS\\\\rag-retrieval-evaluation-lab\\\\\"\\), \"\" })"
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\ORENS\\\\rag-retrieval-evaluation-lab\\\\src\" -Recurse -File | Select-Object FullName | ForEach-Object { $_.FullName -replace [regex]::Escape\\(\"C:\\\\Users\\\\ORENS\\\\rag-retrieval-evaluation-lab\\\\\"\\), \"\" })",
+      "Bash(Remove-Item -Recurse -Force src/evaluation, notebooks, prompts -ErrorAction SilentlyContinue)",
+      "Bash(Remove-Item -Force docs/evaluation_report.md, docs/experiment_plan.md, \"data/raw/1._LLM_Methodology_Ecosystem.pdf\", results/evaluation_results.csv -ErrorAction SilentlyContinue)",
+      "Bash(Remove-Item -Recurse -Force data/ground_truth -ErrorAction SilentlyContinue)",
+      "Bash(Remove-Item -Recurse -Force \"vector_db/chroma/208538f9-4ab1-4fcc-92ab-00e6da221fce\" -ErrorAction SilentlyContinue)",
+      "Bash(Remove-Item -Force \"vector_db/chroma/chroma.sqlite3\" -ErrorAction SilentlyContinue)",
+      "Bash(New-Item -ItemType Directory -Force src/integrations, src/pmo, src/risk, src/okr, src/reporting, data/monday_demo, data/methodology_docs)",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType File -Force src/integrations/__init__.py, src/pmo/__init__.py, src/risk/__init__.py, src/okr/__init__.py, src/reporting/__init__.py)",
+      "Bash(Write-Host \"New directories created\")"
     ]
   }
 }

@@ -6,14 +6,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AppSettings(BaseSettings):
-    """
-    Typed application settings loaded from .env at startup.
-
-    All values serve as startup defaults only. Runtime configuration
-    (e.g. Streamlit sidebar selections) is passed as explicit arguments
-    to pipeline components — settings are never re-read inside pipeline logic.
-    """
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -24,17 +16,22 @@ class AppSettings(BaseSettings):
     app_env: str = "local"
     log_level: str = "INFO"
 
-    # Mock mode — safe default, no API keys required
-    mock_mode: bool = True
+    # PMO data source — "mock" loads local demo JSON; "monday_api" is a future extension
+    pmo_data_source: str = "mock"
 
-    # Embedding provider — options: mock | huggingface | openai | gemini
+    # Monday API (future use — leave empty in v1)
+    monday_api_token: Optional[str] = None
+    monday_workspace_id: Optional[str] = None
+
+    # AI / embedding provider for PMO Q&A
+    mock_mode: bool = True
     embedding_provider: str = "mock"
     embedding_model: str = "mock-384"
 
-    # Vector store — options: chroma | faiss
+    # Vector store for methodology doc indexing
     vector_store: str = "chroma"
 
-    # Chunking — options: recursive | fixed
+    # Chunking for methodology docs
     chunk_strategy: str = "recursive"
     chunk_size: int = 500
     chunk_overlap: int = 100
@@ -42,15 +39,14 @@ class AppSettings(BaseSettings):
     # Retrieval
     top_k: int = 5
 
-    # Re-ranking
-    use_reranker: bool = False
-
-    # Optional API keys — left empty to stay in mock mode
+    # Optional AI provider keys
     openai_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
 
     # Paths
     data_dir: str = "data"
+    monday_demo_dir: str = "data/monday_demo"
+    methodology_docs_dir: str = "data/methodology_docs"
     vector_db_dir: str = "vector_db"
     results_dir: str = "results"
 
@@ -58,5 +54,4 @@ class AppSettings(BaseSettings):
     max_upload_mb: int = 10
 
 
-# Module-level singleton — loaded once at import time.
 settings = AppSettings()

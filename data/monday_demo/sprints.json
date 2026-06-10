@@ -1,0 +1,64 @@
+[
+  {
+    "id": "s005",
+    "name": "Sprint 5",
+    "board_id": "b001",
+    "start_date": "2026-05-06",
+    "end_date": "2026-05-19",
+    "planned_points": 48,
+    "completed_points": 42,
+    "status": "completed",
+    "goal": "Stabilize authentication layer and ship initial data pipeline foundation",
+    "team": ["Yael M.", "Dan K.", "Oren S.", "Maya R.", "Lior H.", "Tali G."],
+    "retro_notes": [
+      "Velocity was 88% — our best sprint this quarter. Fewer external dependencies helped.",
+      "Daily standups kept to 12 minutes on average — good discipline maintained.",
+      "Data pipeline scoping was underestimated by ~3 story points — need better breakdown of data tasks.",
+      "Ron A. joined mid-sprint; plan for reduced capacity in first sprint for new team members."
+    ]
+  },
+  {
+    "id": "s006",
+    "name": "Sprint 6",
+    "board_id": "b001",
+    "start_date": "2026-05-20",
+    "end_date": "2026-06-02",
+    "planned_points": 50,
+    "completed_points": 44,
+    "status": "completed",
+    "goal": "Complete platform auth refactor and begin onboarding epic",
+    "team": ["Yael M.", "Dan K.", "Oren S.", "Maya R.", "Lior H.", "Tali G.", "Ron A."],
+    "retro_notes": [
+      "Improved PR review cycle — average review time dropped from 2 days to 6 hours",
+      "Design dependency caused a 2-day delay on 3 UX tasks — need earlier design handoffs",
+      "Database performance issue during load test was caught early due to better monitoring",
+      "Dan K. carried too much backend load solo — consider pairing for critical path tasks"
+    ]
+  },
+  {
+    "id": "s007",
+    "name": "Sprint 7",
+    "board_id": "b001",
+    "start_date": "2026-06-03",
+    "end_date": "2026-06-17",
+    "planned_points": 60,
+    "completed_points": 22,
+    "status": "active",
+    "goal": "Ship user onboarding v2 and unblock retention engine data pipeline",
+    "team": ["Yael M.", "Dan K.", "Oren S.", "Maya R.", "Lior H.", "Tali G.", "Ron A.", "Noa T."],
+    "retro_notes": []
+  },
+  {
+    "id": "s008",
+    "name": "Sprint 8",
+    "board_id": "b001",
+    "start_date": "2026-06-18",
+    "end_date": "2026-07-01",
+    "planned_points": 65,
+    "completed_points": 0,
+    "status": "planned",
+    "goal": "Deploy churn prediction model and launch auto-scaling infrastructure",
+    "team": ["Yael M.", "Dan K.", "Oren S.", "Maya R.", "Lior H.", "Tali G.", "Ron A.", "Noa T."],
+    "retro_notes": []
+  }
+]

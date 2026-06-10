@@ -1,5 +1,5 @@
 # ============================================================
-# RAG Retrieval Evaluation Lab — Dependencies
+# Smart PMO Agent — Dependencies
 # ============================================================
 
 # --- UI ---
@@ -13,22 +13,24 @@ pydantic-settings>=2.0
 numpy>=1.26
 pandas>=2.0
 
-# --- Document parsing ---
+# --- Document parsing (for methodology docs) ---
 pypdf>=4.0
 beautifulsoup4>=4.12
 lxml>=5.0
 
-# --- Vector stores ---
+# --- Vector store (methodology doc indexing) ---
 chromadb>=0.5
-faiss-cpu>=1.8
 
-# --- Embeddings and re-ranking ---
-# Covers local embedding models and cross-encoder re-rankers
+# --- Embeddings (local semantic search over methodology docs) ---
+# sentence-transformers is optional — only needed when EMBEDDING_PROVIDER=huggingface
 sentence-transformers>=3.0
 
-# --- Optional embedding providers (keys required at runtime) ---
+# --- Optional AI providers (keys required at runtime) ---
 openai>=1.30
 google-generativeai>=0.7
+
+# --- Optional: FAISS vector store alternative ---
+# faiss-cpu>=1.8
 
 # --- Testing ---
 pytest>=8.0

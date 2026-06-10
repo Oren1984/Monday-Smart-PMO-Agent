@@ -1,0 +1,14 @@
+[
+  {
+    "id": "b001",
+    "name": "Product Development",
+    "workspace": "TechCo — FlowHQ",
+    "groups": ["Sprint Backlog", "Sprint 7 — Active", "Sprint 8 — Planned", "Done"]
+  },
+  {
+    "id": "b002",
+    "name": "Platform & Infrastructure",
+    "workspace": "TechCo — FlowHQ",
+    "groups": ["Backlog", "In Progress", "Done"]
+  }
+]

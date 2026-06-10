@@ -1,106 +1,71 @@
-# Known Limitations
+# Known Limitations — Smart PMO Agent
 
-This document lists the current limitations of the RAG Engineering Lab.
-These are intentional design boundaries for v1, not bugs.
+## Monday Integration
 
----
+### Current version uses local demo data, not a live Monday account
 
-## Embedding and Retrieval
+This project currently uses realistic Monday-style mock data loaded from `data/monday_demo/*.json` instead of a live Monday workspace. The data represents a fictional company (TechCo) and is designed to be production-realistic but is not connected to any real project.
 
-### Mock embeddings are not semantic
+**The architecture is intentionally prepared for future Monday API integration through an adapter/client layer (`src/integrations/`).** Switching to real Monday data requires:
+1. Obtaining a Monday personal access token
+2. Setting `PMO_DATA_SOURCE=monday_api` and `MONDAY_API_TOKEN=<token>` in `.env`
+3. Implementing the GraphQL queries in `monday_api_client.py`
 
-`MockEmbeddingProvider` produces vectors seeded from SHA-256 text hashes.
-The vectors do not capture meaning — "chunking strategy" and "splitting approach"
-produce entirely unrelated vectors. Retrieval rankings under mock mode reflect
-hash proximity, not relevance.
+No other code changes are needed.
 
-**Impact:** MRR and nDCG scores with mock embeddings are not interpretable as
-measures of semantic retrieval quality. Only Recall@K (binary hit check) is
-meaningful in mock mode.
+### Demo dataset is fictional and static
 
-**Workaround:** Replace `MockEmbeddingProvider` with `HuggingFaceEmbeddingProvider`
-for semantically meaningful results.
+The demo data covers 40 tasks, 4 sprints, 4 OKRs, 8 risks, and 8 team members for a fictional company (TechCo / FlowHQ). It is designed to surface all five PMO analysis flows with realistic complexity, but it is not connected to any real project or workspace.
 
----
+### No real-time data sync
 
-### FAISS availability depends on the environment
-
-`faiss-cpu` is listed in `requirements.txt` but does not install cleanly on
-all platforms (notably some ARM and older Linux configurations). Wheels are not
-available for all Python/OS combinations.
-
-**Impact:** `FaissVectorStore` raises `ImportError` with a clear message if
-`faiss-cpu` is not installed. The system falls back to `ChromaVectorStore` in the
-Streamlit UI when FAISS is unavailable.
-
-**Workaround:** Install with `pip install faiss-cpu`. If the wheel is unavailable,
-use ChromaDB as the vector store.
+Because data is loaded from static JSON files, there is no real-time sync. Clicking "Refresh Analysis" in the sidebar reloads the same demo data. In a live Monday integration, this would fetch fresh board data.
 
 ---
 
-### HybridRetriever is not implemented
+## AI Q&A
 
-`src/retrieval/hybrid_retriever.py` is a documented stub. Calling it raises
-`RetrievalError("Hybrid retrieval is planned for a future version.")`.
+### Mock mode responses are rule-based, not AI-generated
 
-Hybrid sparse+dense retrieval (e.g. BM25 + dense) is out of scope for v1.
+When no OpenAI key is configured, the AI assistant uses a keyword-matching rule system to generate answers from live project data. These answers are useful and data-grounded but are not AI-generated. Add `OPENAI_API_KEY` to `.env` for full AI responses.
+
+### Mock embeddings do not capture semantic meaning
+
+When `EMBEDDING_PROVIDER=mock`, methodology doc retrieval uses hash-based vectors that do not reflect semantic similarity. The AI Q&A still works (rule-based answers do not depend on semantic retrieval), but the methodology passages shown in "sources" may not be the most semantically relevant.
+
+Use `EMBEDDING_PROVIDER=huggingface` for semantically meaningful retrieval without any API key.
 
 ---
 
-### CrossEncoderReranker requires sentence-transformers
+## Export / Reporting
 
-`CrossEncoderReranker` is available but requires `sentence-transformers` and
-a valid cross-encoder model. The first use downloads the model weights.
-In environments without internet access or with limited disk space, it may fail.
+### Exports are local demo reports, not production reporting
 
-**Default:** `PassThroughReranker` is used in v1, which returns results unchanged.
+The CSV and Markdown export features generate in-memory reports from the current analysis results. They are intended for portfolio demonstration and manual review — not as a production reporting pipeline.
+
+- No reports are stored on disk by the application
+- No email, no scheduler, no report history
+- Markdown reports are styled for readability in a text editor or GitHub, not for enterprise report management systems
 
 ---
 
 ## System Design
 
-### No LLM generation
+### No real Monday account required
 
-This is a **retrieval-only** system. There is no LLM inference, no answer
-generation, and no summarisation in v1. The `expected_answer` field in the
-ground truth is informational only and is not used in scoring.
+By design. This is a portfolio project demonstrating PMO integration thinking and AI application to project management. It runs fully offline.
 
-**By design.** The focus is retrieval quality measurement, not generation quality.
+### No multi-user authentication
 
----
+The Streamlit app is a single-user local application. It is not designed for shared or public deployment. No login, session isolation, or role-based access is implemented.
 
-### No multi-user authentication or session isolation
+### No persistent session storage
 
-The Streamlit app runs as a single-user local application. There is no login,
-no session isolation between browser tabs, and no role-based access control.
+Analysis results are stored in Streamlit session state only. Closing the browser tab resets the session. Results are not persisted to disk between sessions.
 
-**Impact:** Running the app in a shared or public environment would expose the
-pipeline state to all users.
+### Demo data is fictional
 
-**By design.** The system is intended for local development and evaluation.
-
----
-
-### Single-document index per pipeline run
-
-`RAGPipeline.build_index()` indexes one document per call. The vector store
-accumulates chunks across calls, but there is no document management, versioning,
-or deduplication at the pipeline level.
-
-**Impact:** Calling `build_index()` on the same document twice adds duplicate
-chunks to the store (ChromaDB upserts prevent this; FAISS does not).
-
-**Workaround:** Call `pipeline.clear()` before re-indexing.
-
----
-
-### Pattern-based PII redaction is not exhaustive
-
-`src/security/pii_redaction.py` uses regular expressions to detect common PII
-patterns (email addresses, phone numbers, basic name patterns). It does not use
-an NER model or a dedicated PII detection service.
-
-**Impact:** Unusual or non-standard PII formats may not be redacted.
+All persons, companies, projects, and data in `data/monday_demo/` are fictional. Any resemblance to real projects or people is coincidental.
 
 ---
 
@@ -108,48 +73,23 @@ an NER model or a dedicated PII detection service.
 
 ### Docker requires a running Docker daemon
 
-`docker compose up --build` requires Docker Desktop (Windows/macOS) or the
-Docker daemon (Linux) to be running. The container exposes port 8501.
+`docker compose up --build` requires Docker Desktop (Windows/macOS) or the Docker daemon (Linux).
 
-**Impact:** The Dockerised workflow is not available in environments where
-Docker is not installed or the daemon is stopped.
+### No cloud deployment in v1
 
----
-
-### No cloud deployment configuration in v1
-
-There is no Kubernetes manifest, Helm chart, Terraform module, or cloud provider
-configuration included in v1. The system is designed for local execution.
-
-**By design.** Cloud deployment would require persistent volume management,
-secret injection, and authentication that are out of scope for v1.
-
----
-
-### Windows ChromaDB file-lock on cleanup
-
-ChromaDB's `PersistentClient` holds open file handles on Windows. Deleting the
-database directory while the client is active (e.g. at the end of a test) may
-raise `PermissionError: [WinError 32]`.
-
-**Mitigation:** All test code uses `tempfile.TemporaryDirectory(ignore_cleanup_errors=True)`
-(Python 3.10+) and `shutil.rmtree(ignore_errors=True)` for cleanup.
+No Kubernetes, Helm, Terraform, or cloud provider configuration is included. The system is designed for local execution.
 
 ---
 
 ## Scope Boundaries
 
-The following capabilities are explicitly out of scope for v1 and are not planned
-for near-term implementation:
-
 | Capability | Status |
 |-----------|--------|
-| LLM agents | Not planned — this is not an agent system |
-| MCP (Model Context Protocol) | Not applicable |
-| CrewAI or LangChain | Not used |
-| Chat interface | Not planned |
-| FastAPI or REST API | Not planned |
-| Kubernetes / Terraform | Not planned |
-| SaaS or multi-tenant deployment | Not planned |
-| BM25 / hybrid retrieval | Planned for a future version |
-| Answer quality evaluation | Planned — requires LLM integration |
+| Live Monday API integration | Future — adapter skeleton in place |
+| Real-time data sync | Future — requires live API |
+| Multi-user dashboard | Not planned for v1 |
+| Notifications / alerts | Not planned for v1 |
+| Gantt / timeline view | Not planned for v1 |
+| Budget / cost tracking | Out of scope |
+| Jira / Linear integration | Out of scope for v1 |
+| Mobile responsive UI | Partially — Streamlit is responsive but not optimized for mobile |

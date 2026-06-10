@@ -1,37 +1,45 @@
 from __future__ import annotations
 
 
-class RAGLabError(Exception):
-    """Base exception for all RAG Retrieval Evaluation Lab errors."""
+class PMOAgentError(Exception):
+    """Base exception for all Smart PMO Agent errors."""
 
 
-class ConfigurationError(RAGLabError):
-    """Raised when configuration is missing, invalid, or incompatible."""
+class ConfigurationError(PMOAgentError):
+    """Raised when required configuration is missing or invalid."""
 
 
-class ValidationError(RAGLabError):
-    """Raised when user input fails validation (files, queries, parameters)."""
+class ValidationError(PMOAgentError):
+    """Raised when input validation fails at a system boundary."""
 
 
-class IngestionError(RAGLabError):
-    """Raised when document loading or parsing fails."""
+class IngestionError(PMOAgentError):
+    """Raised when document loading or text cleaning fails."""
 
 
-class ChunkingError(RAGLabError):
+class ChunkingError(PMOAgentError):
     """Raised when text chunking fails."""
 
 
-class EmbeddingError(RAGLabError):
-    """Raised when embedding generation fails (e.g. API error, model load failure)."""
+class EmbeddingError(PMOAgentError):
+    """Raised when embedding generation fails."""
 
 
-class VectorStoreError(RAGLabError):
-    """Raised when a vector store operation fails (add, search, persist, load)."""
+class VectorStoreError(PMOAgentError):
+    """Raised when a vector store operation fails."""
 
 
-class RetrievalError(RAGLabError):
-    """Raised when the retrieval pipeline fails."""
+class RetrievalError(PMOAgentError):
+    """Raised when semantic retrieval fails."""
 
 
-class EvaluationError(RAGLabError):
-    """Raised when evaluation fails (e.g. malformed ground truth, metric error)."""
+class IntegrationError(PMOAgentError):
+    """Raised when the Monday integration layer fails to load or normalize data."""
+
+
+class PMOAnalysisError(PMOAgentError):
+    """Raised when PMO analysis fails due to missing or malformed data."""
+
+
+class AIQueryError(PMOAgentError):
+    """Raised when the AI Q&A pipeline fails."""
