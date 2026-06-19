@@ -1,8 +1,8 @@
-# Architecture — Smart PMO Agent
+# Architecture — Monday Smart PMO Agent
 
 ## System Overview
 
-The Smart PMO Agent is structured as four independent layers connected by typed data contracts.
+The Monday Smart PMO Agent is structured as four independent layers connected by typed data contracts.
 
 ```
 ┌─────────────────────────────────────────────────────────┐

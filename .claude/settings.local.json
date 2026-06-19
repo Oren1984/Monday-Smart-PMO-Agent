@@ -17,7 +17,8 @@
       "Bash(New-Item -ItemType Directory -Force src/integrations, src/pmo, src/risk, src/okr, src/reporting, data/monday_demo, data/methodology_docs)",
       "Bash(Out-Null)",
       "Bash(New-Item -ItemType File -Force src/integrations/__init__.py, src/pmo/__init__.py, src/risk/__init__.py, src/okr/__init__.py, src/reporting/__init__.py)",
-      "Bash(Write-Host \"New directories created\")"
+      "Bash(Write-Host \"New directories created\")",
+      "Bash(find . -type f -not -path '*/\\\\.*' -not -path '*/__pycache__/*' -not -path '*/.pytest_cache/*')"
     ]
   }
 }

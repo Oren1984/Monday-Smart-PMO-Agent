@@ -1,16 +1,16 @@
-# Smart PMO Agent
+# Monday Smart PMO Agent
 
 **Oren Salami | Technology Project Management + AI Tools**
 
-An AI-powered PMO assistant for technology project teams. Analyzes Monday-style project data to deliver project health visibility, risk detection, sprint insights, OKR alignment analysis, and AI-powered Q&A for project managers.
+AI-Powered PMO Assistant for Project Visibility, Risk Monitoring and Strategic Alignment.
 
 ---
 
 ## Project Overview
 
-The **Smart PMO Agent** connects to Monday-style project data and answers the questions every PM needs answered:
+The **Monday Smart PMO Agent** connects to Monday-style project data and answers the questions every PM and PMO stakeholder needs answered:
 
-- What is the current project status?
+- What is the current portfolio status?
 - Which tasks are blocking the sprint?
 - Which OKRs are at risk?
 - Who is overloaded on the team?
@@ -35,19 +35,38 @@ No other code changes are required. See `docs/architecture.md` for the full desi
 
 > This project currently uses realistic Monday-style mock data instead of a live Monday account.
 > The architecture is intentionally prepared for future Monday API integration through an adapter/client layer.
-> This keeps the portfolio project lightweight while still demonstrating real PMO integration thinking.
+> This keeps the project lightweight while still demonstrating real PMO integration thinking.
 
 ---
 
-## Five Core Flows
+## Core Capabilities
 
-| Flow | Input | Output |
-|------|-------|--------|
-| **Project Visibility** | Tasks, sprints, statuses, due dates | Health score, blockers, sprint progress |
-| **Risk Detection** | Blocked tasks, OKR gaps, capacity signals | Risk registry with severities and mitigations |
+| Capability | Input | Output |
+|-----------|-------|--------|
+| **Portfolio Visibility** | Tasks, sprints, statuses, due dates | Health score, blockers, sprint progress |
+| **Risk Monitoring** | Blocked tasks, OKR gaps, capacity signals | Risk registry with severities and mitigations |
 | **Sprint Insights** | Sprint tasks, velocity, team distribution | Sprint health, retro talking points, bottlenecks |
 | **OKR Alignment** | Tasks with OKR links, OKR registry | At-risk objectives, unaligned work percentage |
+| **Executive Summary** | Portfolio-wide health, risks, OKRs | PMO-level summary with recommended actions |
 | **AI PMO Q&A** | Natural language question + project context | Contextual PM answer with methodology grounding |
+
+---
+
+## Human-in-the-Loop
+
+The Monday Smart PMO Agent supports PMO decision-making but does not replace human judgment.
+
+The agent detects risks, summarizes information, highlights gaps, and suggests actions. A human PM, PMO lead, or engineering manager must approve decisions, escalations, reprioritization, and delivery changes.
+
+| The agent DOES | The agent does NOT |
+|---------------|-------------------|
+| Detect risk signals | Make delivery decisions |
+| Summarize sprint status | Approve or reject work |
+| Highlight OKR gaps | Replace the PM or PMO role |
+| Suggest follow-up actions | Automatically escalate issues |
+| Surface team overload | Reassign tasks autonomously |
+
+See `docs/AI_GOVERNANCE_AND_RISK_PRINCIPLES.md` for the full governance principles.
 
 ---
 
@@ -57,7 +76,7 @@ No other code changes are required. See `docs/architecture.md` for the full desi
 data/monday_demo/*.json
         ↓
 src/integrations/monday_mock_client.py  ← Active (adapter pattern)
-src/integrations/monday_api_client.py   ← Future skeleton
+src/integrations/monday_api_client.py   ← Future skeleton (env-var driven)
         ↓
 src/pmo/  src/risk/  src/okr/  src/reporting/
         ↓
@@ -86,7 +105,7 @@ cp .env.example .env
 streamlit run app/streamlit_app.py
 ```
 
-Open: http://localhost:8501
+Open: http://localhost:8511
 
 No API key, Monday account, or external service is required.
 
@@ -198,12 +217,37 @@ Open: http://localhost:8000
 
 ---
 
+## Project Structure
+
+```
+Monday-Smart-PMO-Agent/
+├── app/streamlit_app.py          # Main UI (7-tab Streamlit dashboard)
+├── src/
+│   ├── core/                     # Config, contracts, exceptions
+│   ├── integrations/             # Monday adapter layer (mock + future API)
+│   ├── pmo/                      # PMO analysis engine
+│   ├── risk/                     # Risk detection
+│   ├── okr/                      # OKR alignment analysis
+│   ├── pipeline/                 # RAG / AI Q&A pipeline
+│   ├── reporting/                # Exports and report building
+│   └── observability/            # Metrics and tracing
+├── data/
+│   ├── monday_demo/              # Local JSON demo data (40 tasks, 4 OKRs, 8 risks)
+│   └── methodology_docs/         # PM methodology knowledge base (Agile, OKR, etc.)
+├── docs/                         # Architecture, governance, demo scripts, scenarios
+├── static-site/                  # Portfolio landing page (HTML/CSS/JS)
+└── tests/                        # Unit, integration, e2e test suite
+```
+
+---
+
 ## Documentation
 
 | Document | Contents |
 |----------|---------|
 | `docs/architecture.md` | System design and data flow |
-| `docs/project_plan.md` | Goals, scope, implementation phases |
+| `docs/AI_GOVERNANCE_AND_RISK_PRINCIPLES.md` | AI governance, Human-in-the-Loop, responsible use |
+| `docs/EXAMPLE_EVALUATION_SCENARIOS.md` | Demo and evaluation scenarios |
 | `docs/methodology_alignment.md` | Agile, Scrum, OKR, sprint ops mapping |
 | `docs/demo_flow.md` | How to demo and present the project |
 | `docs/testing_strategy.md` | Testing approach and coverage |
@@ -212,11 +256,25 @@ Open: http://localhost:8000
 
 ---
 
+## What This Project Intentionally Does NOT Include
+
+This project is intentionally right-sized for a demo-ready PMO assistant. The following are excluded by design:
+
+- **No real MCP implementation** — no Model Context Protocol server at this stage
+- **No multi-agent architecture** — a single AI assistant is sufficient for this scope
+- **No production cloud deployment** — demo mode runs locally with no cloud dependencies
+- **No automatic decision-making** — human approval is always required for escalations and changes
+- **No heavy security framework** — appropriate governance is noted in docs; production hardening is future work
+- **No unnecessary CI/CD** — tests run locally; a CI pipeline is a future extension
+- **No replacement for PM/PMO human judgment** — the agent assists, it does not decide
+
+---
+
 ## Project Category
 
 **Technology Project Management + AI Tools**
 
-This project demonstrates practical AI application for project management — not pure AI/ML engineering. It shows how to build a PMO assistant that helps a PM improve project visibility, detect risks earlier, align work to business goals, and answer natural language questions about project status.
+This project demonstrates practical AI application for project management — not pure AI/ML engineering. It shows how to build a PMO assistant that helps a PM improve portfolio visibility, detect risks earlier, align work to strategic goals, and answer natural language questions about project status.
 
 ---
 

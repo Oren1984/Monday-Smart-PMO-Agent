@@ -1,4 +1,4 @@
-"""Smart PMO Agent — Streamlit UI"""
+"""Monday Smart PMO Agent — Streamlit UI"""
 from __future__ import annotations
 
 import os
@@ -12,7 +12,7 @@ if _ROOT not in sys.path:
 import streamlit as st
 
 st.set_page_config(
-    page_title="Smart PMO Agent",
+    page_title="Monday Smart PMO Agent",
     layout="wide",
     initial_sidebar_state="expanded",
     page_icon="📋",
@@ -161,10 +161,10 @@ def get_pmo_pipeline():
 st.markdown("""
 <div style="padding:0.6rem 0 0.4rem; border-bottom:2px solid #e2e8f0; margin-bottom:0.5rem;">
   <h1 style="margin:0; font-size:1.8rem; color:#1e293b;">
-    📋 Smart PMO Agent
+    📋 Monday Smart PMO Agent
   </h1>
   <p style="margin:0.2rem 0 0; font-size:0.95rem; color:#475569;">
-    AI-powered project visibility for technology teams
+    AI-Powered PMO Assistant for Project Visibility, Risk Monitoring and Strategic Alignment
   </p>
 </div>
 """, unsafe_allow_html=True)
@@ -771,12 +771,15 @@ with tab_ai:
 # TAB 7 — About
 # ─────────────────────────────────────────────────────────────────────────
 with tab_about:
-    st.subheader("About Smart PMO Agent")
+    st.subheader("About Monday Smart PMO Agent")
 
     st.markdown("""
-**Smart PMO Agent** is an AI-powered PMO assistant for technology project teams.
-It analyzes Monday-style project data and PM methodology knowledge to give project managers
-real-time visibility into project health, risks, sprint performance, OKR alignment, and team workload.
+**Monday Smart PMO Agent** is an AI-Powered PMO Assistant for Project Visibility, Risk Monitoring and Strategic Alignment.
+It analyzes Monday-style project data and PM methodology knowledge to give project managers and PMO stakeholders
+real-time visibility into portfolio health, risks, sprint performance, OKR alignment, and team workload.
+
+> The agent supports PMO decision-making but does not replace human judgment.
+> A human PM, PMO lead, or manager must approve decisions, escalations, and delivery changes.
 
 ---
 
