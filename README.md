@@ -39,6 +39,33 @@ No other code changes are required. See `docs/architecture.md` for the full desi
 
 ---
 
+## Monday Demo Environment
+
+A real Monday.com account was created for demo validation and environment readiness.
+
+**Board created:** Monday Smart PMO Agent — Project Board
+
+| Group | Contents |
+|-------|---------|
+| Sprint 1 — Core PMO Dashboard | Core dashboard tasks |
+| Backlog | AI Assistant & Reports tasks |
+| Sprint 2 — GitHub & Documentation | Documentation tasks |
+
+Screenshots of the board are available under `docs/screenshots/`:
+
+**Sprint Overview:**
+
+![Monday Smart PMO Agent — Sprint Overview](docs/screenshots/01-monday-project-board-sprints-overview.png)
+
+**AI Reports Backlog:**
+
+![Monday Smart PMO Agent — AI Reports Backlog](docs/screenshots/02-monday-project-board-ai-reports-backlog.png)
+
+> The real Monday board validates that the project is structurally ready for live Monday API integration.
+> The Streamlit app continues to run in mock/demo mode — no Monday account is needed to run the project.
+
+---
+
 ## Core Capabilities
 
 | Capability | Input | Output |
@@ -84,6 +111,16 @@ src/pipeline/pmo_pipeline.py  ←  RAG + AI Q&A layer
         ↓
 app/streamlit_app.py  ← 7-tab PMO dashboard
 ```
+
+---
+
+## Security Note
+
+- `.env` is **never committed** — it is listed in `.gitignore`
+- `.env.example` contains only safe placeholders (no tokens, no credentials)
+- `MONDAY_API_TOKEN`, `OPENAI_API_KEY`, and `GEMINI_API_KEY` must never be hardcoded in source files
+- All API keys and credentials are read from environment variables at runtime only
+- The default mode (`PMO_DATA_SOURCE=mock`) requires no credentials of any kind
 
 ---
 
@@ -253,6 +290,7 @@ Monday-Smart-PMO-Agent/
 | `docs/testing_strategy.md` | Testing approach and coverage |
 | `docs/known_limitations.md` | What is demo data, what is not, what is next |
 | `docs/API_KEYS_GUIDE.md` | Setup guide for all configuration options |
+| `docs/security_observability.md` | Security modules and observability layer |
 
 ---
 
@@ -275,6 +313,16 @@ This project is intentionally right-sized for a demo-ready PMO assistant. The fo
 **Technology Project Management + AI Tools**
 
 This project demonstrates practical AI application for project management — not pure AI/ML engineering. It shows how to build a PMO assistant that helps a PM improve portfolio visibility, detect risks earlier, align work to strategic goals, and answer natural language questions about project status.
+
+---
+
+## Responsible AI Statement
+
+The Monday Smart PMO Agent supports PMO decisions — it does not replace human judgment.
+
+The agent detects signals, summarizes data, and suggests actions. A qualified PM, PMO lead, or engineering manager must review, validate, and approve all decisions before acting. No escalation, reprioritization, or delivery change should be made based solely on agent output without human review.
+
+See `docs/AI_GOVERNANCE_AND_RISK_PRINCIPLES.md` for the full governance and Human-in-the-Loop principles.
 
 ---
 

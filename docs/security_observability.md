@@ -22,10 +22,10 @@ from environment variables.
 
 **Error type:** `ValidationError` (subclass of `RAGLabError`)
 
-**Usage in the Streamlit UI:**
-- File validation runs inside `_save_upload()` in `app/streamlit_app.py`
-- Files that fail validation are rejected before write and a user-visible error is shown
-- No partial files are written to `data/raw/`
+**Usage:**
+- File validation is available for any pipeline that accepts user-supplied files
+- Files that fail validation should be rejected before processing begins
+- No partial files should be written to `data/raw/`
 
 ---
 
@@ -78,9 +78,6 @@ In the pipeline:
 ```python
 pipeline.build_index(file_path, redact_pii=True)
 ```
-
-In the Streamlit UI:
-- A "Redact PII" toggle is available in the Ingestion tab sidebar.
 
 **Limitations:**
 - Pattern-based redaction is not exhaustive. It does not replace a dedicated
@@ -185,8 +182,8 @@ each pipeline component is in a ready state:
 - Selected vector store name
 - Error count since last reset
 
-These are surfaced in the **System Status** tab of the Streamlit UI, allowing
-operators to verify the pipeline state at a glance without inspecting logs.
+These are available via `health_check()` for integration into any observability surface,
+allowing operators to verify the pipeline state without inspecting logs.
 
 ---
 

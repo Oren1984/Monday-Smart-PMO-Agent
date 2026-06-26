@@ -1,4 +1,4 @@
-# Setup Guide — Smart PMO Agent
+# Setup Guide — Monday Smart PMO Agent
 
 ## Default Mode: No API Keys Required
 
@@ -58,7 +58,7 @@ When Monday API integration is implemented:
 ```
 PMO_DATA_SOURCE=monday_api
 MONDAY_API_TOKEN=<your-token>
-MONDAY_WORKSPACE_ID=<your-workspace-id>
+MONDAY_BOARD_ID=<your-board-id>
 ```
 
 No changes to any other part of the system are required.
