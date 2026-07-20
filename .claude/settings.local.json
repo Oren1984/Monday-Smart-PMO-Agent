@@ -18,7 +18,10 @@
       "Bash(Out-Null)",
       "Bash(New-Item -ItemType File -Force src/integrations/__init__.py, src/pmo/__init__.py, src/risk/__init__.py, src/okr/__init__.py, src/reporting/__init__.py)",
       "Bash(Write-Host \"New directories created\")",
-      "Bash(find . -type f -not -path '*/\\\\.*' -not -path '*/__pycache__/*' -not -path '*/.pytest_cache/*')"
+      "Bash(find . -type f -not -path '*/\\\\.*' -not -path '*/__pycache__/*' -not -path '*/.pytest_cache/*')",
+      "Bash(git check-ignore *)",
+      "Bash(awk -F= '{ if \\($2 != \"\"\\) print $1\"=<SET>\"; else print $1\"=<empty>\" }' .env)",
+      "Bash(grep -i \"^\\\\.env$\")"
     ]
   }
 }
