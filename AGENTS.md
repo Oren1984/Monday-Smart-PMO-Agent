@@ -114,7 +114,7 @@ src/integrations/
 
 **Future Monday API:** Implement by completing `monday_api_client.py`. Use only:
 - `MONDAY_API_TOKEN` environment variable for authentication
-- `MONDAY_BOARD_ID` environment variable for board selection
+- `MONDAY_WORKSPACE_ID` environment variable for workspace selection
 
 No hardcoded values. No real credentials in the codebase.
 
@@ -155,7 +155,7 @@ Each module accepts typed DTOs (from `src/core/contracts.py`) and returns typed 
 | `EMBEDDING_PROVIDER` | `mock` | `mock`, `huggingface`, `openai`, `gemini` |
 | `OPENAI_API_KEY` | empty | Enables full AI Q&A (optional) |
 | `MONDAY_API_TOKEN` | empty | Future: live Monday integration |
-| `MONDAY_BOARD_ID` | empty | Future: Monday board selection |
+| `MONDAY_WORKSPACE_ID` | empty | Future: Monday workspace selection |
 
 Demo mode works with all defaults — no environment configuration required.
 

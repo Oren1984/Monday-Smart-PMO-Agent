@@ -32,7 +32,7 @@ The page presents the following aspects of the project:
 static-site/
 ├── index.html      # Full landing page with all sections
 ├── styles.css      # Dark theme, glassmorphism cards, responsive grid, animations
-├── app.js          # Sticky nav, scroll reveal, counter animation, smooth scroll
+├── app.js          # Sticky nav, active-section tracking, scroll reveal, smooth scroll
 └── assets/         # Reserved for future static assets (currently unused)
 ```
 

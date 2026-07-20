@@ -89,6 +89,20 @@ Needs Attention — velocity 50–74%
 At Risk        — velocity < 50%
 ```
 
+### Rule Thresholds vs. Methodology Reference Docs
+
+All scoring thresholds above (health bands, sprint velocity bands, risk severity
+ordering in `risk_detector.py`, OKR alignment math in `okr_analyzer.py`, and the
+overload threshold in `capacity_tracker.py`) are **hardcoded Python constants**,
+not configuration. They are deterministic, unit-tested, and independent of any
+LLM or document — the authoritative source for every score and status shown in
+the UI.
+
+`data/methodology_docs/*.md` (see Layer 3) is a separate concern: it is
+reference text retrieved by the RAG layer to ground the AI Q&A assistant's
+*prose*. It does not configure thresholds, does not calculate scores, and does
+not influence the PMO Analysis Engine in any way.
+
 ---
 
 ## Layer 3 — AI / RAG Pipeline (src/pipeline/pmo_pipeline.py)
@@ -113,6 +127,15 @@ On startup, indexes all `.md` files in `data/methodology_docs/` into ChromaDB:
 ### Mock mode answers
 
 When no OpenAI key is present, `_mock_answer()` uses keyword detection to route the question to one of 9 specialized response generators, each pulling real data from `pmo_context`. This makes the demo fully functional offline.
+
+### What the methodology docs do — and don't — control
+
+The retrieved passages from `data/methodology_docs/` are inserted into the AI
+prompt (or cited as "sources" in mock mode) purely to ground the assistant's
+explanatory language in real PM methodology. They never feed into
+`project_health.py`, `sprint_analyzer.py`, `risk_detector.py`, `okr_analyzer.py`,
+or `capacity_tracker.py`. Editing a methodology doc changes how the AI
+*explains* a result — it cannot change the result itself.
 
 ---
 

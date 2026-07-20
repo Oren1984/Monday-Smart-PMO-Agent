@@ -134,8 +134,8 @@ A: Two layers. First, methodology docs (Agile, Scrum, OKR, etc.) are indexed int
    sent to OpenAI (or the rule-based mock) to generate a contextual PM answer.
 
 **Q: Is the demo data realistic?**
-A: It models a fictional SaaS company (TechCo) with a real-looking project: 6 team members,
-   25 tasks, 3 OKRs, 6 risks, and a sprint that is behind schedule with realistic blockers.
+A: It models a fictional SaaS company (TechCo) with a real-looking project: 8 team members,
+   40 tasks, 4 OKRs, 8 risks, and a sprint that is behind schedule with realistic blockers.
    The data was designed to surface all five PMO analysis flows clearly.
 
 **Q: What PM methodology does this use?**

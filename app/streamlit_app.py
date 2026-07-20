@@ -787,7 +787,7 @@ real-time visibility into portfolio health, risks, sprint performance, OKR align
 
 This project uses **realistic Monday-style local demo data** loaded from `data/monday_demo/`.
 The data represents a fictional tech company (TechCo) building a SaaS product (FlowHQ)
-with an active sprint, 6 team members, 3 OKRs, and real-looking project complexity.
+with an active sprint, 8 team members, 4 OKRs, and real-looking project complexity.
 
 **Real Monday API integration is a planned future extension.**
 The architecture includes a clean adapter layer (`src/integrations/`) that allows switching

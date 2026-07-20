@@ -4,6 +4,10 @@
 
 AI-Powered PMO Assistant for Project Visibility, Risk Monitoring and Strategic Alignment.
 
+> **Status: Closed and stable.** This is a completed, portfolio-ready mock/demo project.
+> It runs entirely offline with deterministic PMO rules and an optional AI Q&A layer —
+> see `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` for the full governance posture.
+
 ---
 
 ## Project Overview
@@ -93,7 +97,7 @@ The agent detects risks, summarizes information, highlights gaps, and suggests a
 | Suggest follow-up actions | Automatically escalate issues |
 | Surface team overload | Reassign tasks autonomously |
 
-See `docs/AI_GOVERNANCE_AND_RISK_PRINCIPLES.md` for the full governance principles.
+See `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` for the full governance principles.
 
 ---
 
@@ -142,7 +146,7 @@ cp .env.example .env
 streamlit run app/streamlit_app.py
 ```
 
-Open: http://localhost:8511
+Open: http://localhost:8501
 
 No API key, Monday account, or external service is required.
 
@@ -163,7 +167,7 @@ Open: http://localhost:8511
 | Sprint Health | Velocity, task breakdown, team load, retro talking points | Sprint Summary (.csv) |
 | Risks & Blockers | Risk registry by severity, blocked task detail table | Risk Registry (.csv) |
 | OKR Alignment | Per-OKR KR progress, contributing tasks, unaligned work | — |
-| Capacity / Workload | Per-owner task and point distribution, overload detection | — |
+| Capacity | Per-owner task and point distribution, overload detection | — |
 | AI PMO Assistant | Natural language Q&A — demo mode (no key) or OpenAI | — |
 | About | Project explanation, architecture, demo guide | — |
 
@@ -283,14 +287,13 @@ Monday-Smart-PMO-Agent/
 | Document | Contents |
 |----------|---------|
 | `docs/architecture.md` | System design and data flow |
-| `docs/AI_GOVERNANCE_AND_RISK_PRINCIPLES.md` | AI governance, Human-in-the-Loop, responsible use |
-| `docs/EXAMPLE_EVALUATION_SCENARIOS.md` | Demo and evaluation scenarios |
+| `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` | Governance, Human-in-the-Loop, security, monitoring, observability, auditability, cost, privacy |
+| `docs/evaluation_scenarios.md` | Demo and evaluation scenarios |
 | `docs/methodology_alignment.md` | Agile, Scrum, OKR, sprint ops mapping |
 | `docs/demo_flow.md` | How to demo and present the project |
-| `docs/testing_strategy.md` | Testing approach and coverage |
+| `docs/testing.md` | Testing approach and coverage |
 | `docs/known_limitations.md` | What is demo data, what is not, what is next |
-| `docs/API_KEYS_GUIDE.md` | Setup guide for all configuration options |
-| `docs/security_observability.md` | Security modules and observability layer |
+| `docs/api_keys_guide.md` | Setup guide for all configuration options |
 
 ---
 
@@ -322,7 +325,7 @@ The Monday Smart PMO Agent supports PMO decisions — it does not replace human 
 
 The agent detects signals, summarizes data, and suggests actions. A qualified PM, PMO lead, or engineering manager must review, validate, and approve all decisions before acting. No escalation, reprioritization, or delivery change should be made based solely on agent output without human review.
 
-See `docs/AI_GOVERNANCE_AND_RISK_PRINCIPLES.md` for the full governance and Human-in-the-Loop principles.
+See `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` for the full governance and Human-in-the-Loop principles.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Default Mode: No API Keys Required
 
-The Smart PMO Agent runs fully offline by default. Copy `.env.example` to `.env` and run — no account, token, or API key is needed.
+The Smart PMO Agent runs fully offline by default. Copy `.env.example` to `.env` and run — no Monday account, Monday API token, workspace ID, or any other credential is needed. Setting `MONDAY_API_TOKEN` or `MONDAY_WORKSPACE_ID` today does not activate live Monday integration — `MondayAPIClient` remains an intentionally unimplemented placeholder (see `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md`).
 
 ```bash
 cp .env.example .env
@@ -58,7 +58,9 @@ When Monday API integration is implemented:
 ```
 PMO_DATA_SOURCE=monday_api
 MONDAY_API_TOKEN=<your-token>
-MONDAY_BOARD_ID=<your-board-id>
+MONDAY_WORKSPACE_ID=<your-workspace-id>
 ```
 
-No changes to any other part of the system are required.
+No changes to any other part of the system are required. Setting these values
+today has no effect — `PMO_DATA_SOURCE=monday_api` currently raises
+`NotImplementedError` by design.

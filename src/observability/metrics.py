@@ -50,7 +50,7 @@ class _Metrics:
         self.selected_vector_store = ""
 
     def to_dict(self) -> dict:
-        """Return a plain dictionary snapshot for display in the Streamlit System Status tab."""
+        """Return a plain dictionary snapshot of current counters, latencies, and state."""
         return {
             "documents_loaded_total": self.documents_loaded_total,
             "chunks_created_total": self.chunks_created_total,

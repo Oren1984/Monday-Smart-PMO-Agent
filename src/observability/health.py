@@ -18,8 +18,8 @@ def check_health(settings: AppSettings) -> HealthStatus:
     """
     Run lightweight readiness checks against config and the local filesystem.
 
-    No FastAPI endpoints — results are consumed directly by the Streamlit
-    System Status tab.
+    Standalone utility — not wired into the Streamlit UI or any endpoint.
+    Available for a future operator-facing health surface if one is added.
     """
     checks: Dict[str, bool] = {}
     details: Dict[str, str] = {}
