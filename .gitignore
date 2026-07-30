@@ -86,3 +86,8 @@ pip-delete-this-directory.txt
 venv/
 env/
 ENV/
+
+# Claude local workspace
+.claude/
+CLAUDE.md
+.claudeignore
