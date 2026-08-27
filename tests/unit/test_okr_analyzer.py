@@ -59,6 +59,24 @@ class TestAnalyzeOKRAlignment:
         assert r.unaligned_task_count == 0
         assert r.unaligned_task_pct == 0.0
 
+    def test_delivery_risk_flagged_when_at_risk_okr_has_blocked_work(self):
+        tasks = [_task("t1", status="Blocked", okr_link="OKR-1")]
+        okrs = [_okr("OKR-1", status="At Risk")]
+        r = analyze_okr_alignment(okrs, tasks)
+        assert r.okrs_with_delivery_risk == ["OKR-1"]
+
+    def test_delivery_risk_not_flagged_when_on_track(self):
+        tasks = [_task("t1", status="Blocked", okr_link="OKR-1")]
+        okrs = [_okr("OKR-1", status="On Track")]
+        r = analyze_okr_alignment(okrs, tasks)
+        assert r.okrs_with_delivery_risk == []
+
+    def test_delivery_risk_not_flagged_when_at_risk_but_no_blockers(self):
+        tasks = [_task("t1", status="In Progress", okr_link="OKR-1")]
+        okrs = [_okr("OKR-1", status="At Risk")]
+        r = analyze_okr_alignment(okrs, tasks)
+        assert r.okrs_with_delivery_risk == []
+
 
 class TestGetOKRAvgKRProgress:
     def test_average_computed(self):

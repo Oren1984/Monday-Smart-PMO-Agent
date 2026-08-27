@@ -83,6 +83,7 @@ def build_pmo_context(
     ctx["okr_summary"] = okr_report.summary
     ctx["at_risk_okrs"] = [o.id for o in okr_report.at_risk_okrs]
     ctx["unaligned_work_pct"] = okr_report.unaligned_task_pct
+    ctx["okrs_with_delivery_risk"] = okr_report.okrs_with_delivery_risk
     ctx["okrs"] = [
         {
             "id": o.id,
@@ -102,5 +103,6 @@ def build_pmo_context(
     ctx["overloaded_owners"] = capacity.overloaded_owners
     ctx["team_task_counts"] = capacity.owner_task_counts
     ctx["team_blocked_counts"] = capacity.owner_blocked_counts
+    ctx["concentration_risk_owners"] = capacity.concentration_risk_owners
 
     return ctx

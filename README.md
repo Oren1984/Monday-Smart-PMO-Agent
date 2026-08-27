@@ -12,16 +12,26 @@ AI-Powered PMO Assistant for Project Visibility, Risk Monitoring and Strategic A
 
 ## Project Overview
 
+**Smart PMO Agent = Execution Intelligence / Execution Control during project delivery.**
+
 The **Monday Smart PMO Agent** connects to Monday-style project data and answers the questions every PM and PMO stakeholder needs answered:
 
 - What is the current portfolio status?
 - Which tasks are blocking the sprint?
-- Which OKRs are at risk?
-- Who is overloaded on the team?
+- Which OKRs are at risk — and is blocked sprint work actively threatening one of them?
+- Who is overloaded, and does the team have a bus factor / single-point-of-failure risk?
 - What should I focus on this week?
 - What should we discuss in the retrospective?
 
-This is not a generic chatbot. It is a purpose-built PMO assistant grounded in real Agile, Scrum, Sprint Ops, OKR, and capacity management methodology.
+This is not a generic chatbot. It is a purpose-built execution-control layer for a
+Technology Project Manager / Delivery Manager — grounded in real Agile, Scrum, Sprint
+Ops, OKR, and capacity management methodology. It demonstrates the ability to read
+sprint health, delivery risk, team capacity, and strategic alignment **without**
+replacing the human project manager — see [Human-in-the-Loop](#human-in-the-loop).
+
+This is a **Technology Project Management / AI Delivery learning and portfolio
+project** — not an enterprise commercial product. See
+[What This Project Intentionally Does NOT Include](#what-this-project-intentionally-does-not-include).
 
 ---
 
@@ -76,10 +86,10 @@ Screenshots of the board are available under `docs/screenshots/`:
 |-----------|-------|--------|
 | **Portfolio Visibility** | Tasks, sprints, statuses, due dates | Health score, blockers, sprint progress |
 | **Risk Monitoring** | Blocked tasks, OKR gaps, capacity signals | Risk registry with severities and mitigations |
-| **Sprint Insights** | Sprint tasks, velocity, team distribution | Sprint health, retro talking points, bottlenecks |
-| **OKR Alignment** | Tasks with OKR links, OKR registry | At-risk objectives, unaligned work percentage |
+| **Sprint Execution Control** | Sprint tasks, velocity, carryover, team distribution | Sprint health, bottlenecks, bus factor risk, retro talking points |
+| **OKR Alignment** | Tasks with OKR links, OKR registry, blocked contributing work | Aligned/unaligned work, at-risk objectives, delivery risk to strategy |
 | **Executive Summary** | Portfolio-wide health, risks, OKRs | PMO-level summary with recommended actions |
-| **AI PMO Q&A** | Natural language question + project context | Contextual PM answer with methodology grounding |
+| **AI PMO Q&A** | Natural language question + project context | Contextual, advisory PM answer with methodology grounding and a cost-awareness note |
 
 ---
 
@@ -164,12 +174,12 @@ Open: http://localhost:8511
 | Tab | Contents | Export |
 |-----|---------|--------|
 | Executive Dashboard | Health score, status distribution, sprint progress, OKR summary, blockers | Health Report (.md) |
-| Sprint Health | Velocity, task breakdown, team load, retro talking points | Sprint Summary (.csv) |
+| Sprint Health | Velocity, carryover risk, task breakdown, team load, retro talking points | Sprint Summary (.csv) |
 | Risks & Blockers | Risk registry by severity, blocked task detail table | Risk Registry (.csv) |
-| OKR Alignment | Per-OKR KR progress, contributing tasks, unaligned work | — |
-| Capacity | Per-owner task and point distribution, overload detection | — |
-| AI PMO Assistant | Natural language Q&A — demo mode (no key) or OpenAI | — |
-| About | Project explanation, architecture, demo guide | — |
+| OKR Alignment | Per-OKR KR progress, contributing tasks, unaligned work, delivery risk to strategy | — |
+| Capacity | Per-owner task/point distribution, overload detection, bus factor / workload concentration risk | — |
+| AI PMO Assistant | Natural language Q&A — demo mode (no key) or OpenAI, with a cost-awareness note per answer | — |
+| About | Project explanation, AI governance pillars, architecture, demo guide | — |
 
 ---
 
@@ -236,7 +246,7 @@ All exports are local — no data leaves your machine.
 ## Running Tests
 
 ```bash
-pytest                          # full suite (59 tests)
+pytest                          # full suite (73 tests)
 pytest tests/unit/              # unit tests only
 pytest tests/integration/       # integration tests
 pytest tests/e2e/               # end-to-end flow

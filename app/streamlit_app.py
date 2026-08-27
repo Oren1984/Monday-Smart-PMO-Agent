@@ -212,8 +212,18 @@ with st.sidebar:
     st.subheader("AI Assistant Mode")
     if settings.openai_api_key:
         st.success("OpenAI key detected — full AI responses enabled.")
+        st.caption(
+            "💰 Cost awareness: gpt-4o-mini, rough estimate <$0.01 per demo session. "
+            "Advisory estimate only — not billing data. See docs/api_keys_guide.md."
+        )
     else:
         st.info("No OpenAI key — using smart demo responses.\nAdd OPENAI_API_KEY to .env for full AI.")
+        st.caption("💰 Cost awareness: $0 — offline demo mode makes no API calls.")
+
+    st.caption(
+        "🔎 **Decision Support only** — read-only, Human-in-the-Loop. "
+        "The AI Assistant advises; a human PM/PMO lead decides."
+    )
 
 # ── Run analysis ─────────────────────────────────────────────────────────────
 try:
@@ -370,6 +380,10 @@ with tab_dashboard:
 # ─────────────────────────────────────────────────────────────────────────
 with tab_sprint:
     st.subheader("Sprint Health")
+    st.caption(
+        "Execution control view for the PM/Delivery Manager: sprint health, velocity, "
+        "carryover risk, blockers, and capacity in one place."
+    )
     if not sprint_report:
         st.info("No active sprint found in the current dataset.")
     else:
@@ -548,12 +562,19 @@ with tab_risks:
 # ─────────────────────────────────────────────────────────────────────────
 with tab_okr:
     st.subheader("OKR Alignment")
+    st.caption(
+        "Connects tactical sprint work to business objectives: which work is aligned, "
+        "which is unaligned, and where execution risk (blockers) is threatening a "
+        "strategic objective — not just a lagging KR number."
+    )
     st.caption(okr_report.summary)
 
-    o1, o2, o3 = st.columns(3)
+    o1, o2, o3, o4 = st.columns(4)
     o1.metric("OKRs Tracked", len(okr_report.okrs))
     o2.metric("At Risk / Off Track", len(okr_report.at_risk_okrs))
-    o3.metric("Unaligned Work", f"{okr_report.unaligned_task_pct:.0f}%",
+    o3.metric("Delivery Risk", len(okr_report.okrs_with_delivery_risk),
+              help="At-risk OKRs whose contributing work is currently blocked or stuck")
+    o4.metric("Unaligned Work", f"{okr_report.unaligned_task_pct:.0f}%",
               help="Active tasks with no OKR link")
 
     st.divider()
@@ -561,11 +582,19 @@ with tab_okr:
         avg = get_okr_avg_kr_progress(okr)
         oc = _OKR_COLOUR.get(okr.status, "#94a3b8")
         contributing_tasks = okr_report.okr_task_map.get(okr.id, [])
+        has_delivery_risk = okr.id in okr_report.okrs_with_delivery_risk
+        risk_flag = " 🔥 DELIVERY RISK" if has_delivery_risk else ""
 
         with st.expander(
-            f"{okr.id} — {okr.objective[:65]} · {okr.status} · {avg:.0f}% avg",
+            f"{okr.id} — {okr.objective[:65]} · {okr.status} · {avg:.0f}% avg{risk_flag}",
             expanded=(okr.status != "On Track"),
         ):
+            if has_delivery_risk:
+                st.error(
+                    "🔥 **Delivery risk to strategy:** blocked/stuck sprint work is "
+                    "directly threatening this objective — this is an execution "
+                    "problem, not only a lagging KR target."
+                )
             oc1, oc2, oc3 = st.columns(3)
             oc1.markdown(f"**Owner:** {okr.owner}")
             oc2.markdown(f"**Quarter:** {okr.quarter}")
@@ -613,15 +642,28 @@ with tab_okr:
 # ─────────────────────────────────────────────────────────────────────────
 with tab_capacity:
     st.subheader("Team Capacity & Workload")
+    st.caption(
+        "Execution control view for the PM/Delivery Manager: who is overloaded, "
+        "whose work is trapped by blockers, and where a single person's absence "
+        "would stall delivery (bus factor)."
+    )
 
     cap = capacity
-    cc1, cc2, cc3 = st.columns(3)
+    cc1, cc2, cc3, cc4 = st.columns(4)
     cc1.metric("Team Size", len(cap.owner_task_counts))
     cc2.metric("Overloaded", len(cap.overloaded_owners))
-    cc3.metric("Total Active Tasks", sum(cap.owner_task_counts.values()))
+    cc3.metric("Bus Factor Risk", len(cap.concentration_risk_owners),
+               help="Owners holding > 40% of active story points — a single point of failure.")
+    cc4.metric("Total Active Tasks", sum(cap.owner_task_counts.values()))
 
     if cap.overloaded_owners:
         st.warning(f"⚠️ Overloaded team members: {', '.join(cap.overloaded_owners)}")
+    if cap.concentration_risk_owners:
+        st.error(
+            f"🚌 Bus factor risk: {', '.join(cap.concentration_risk_owners)} each hold over "
+            "40% of active story points. If unavailable, delivery stalls — spread this "
+            "work through pairing or knowledge-sharing before it becomes a blocker."
+        )
 
     st.divider()
     st.subheader("Workload Per Team Member")
@@ -633,9 +675,11 @@ with tab_capacity:
         pts = cap.owner_point_totals.get(owner, 0)
         blocked = cap.owner_blocked_counts.get(owner, 0)
         is_overloaded = owner in cap.overloaded_owners
+        is_concentration_risk = owner in cap.concentration_risk_owners
         bar_pct = int((pts / max_pts) * 100) if max_pts > 0 else 0
-        bar_col = "#ef4444" if is_overloaded else "#3b82f6"
+        bar_col = "#ef4444" if (is_overloaded or is_concentration_risk) else "#3b82f6"
         flag = " ⚠️" if is_overloaded else ""
+        flag += " 🚌" if is_concentration_risk else ""
 
         st.markdown(
             f'<div style="padding:10px 14px; background:#f8fafc; border-radius:8px; '
@@ -750,7 +794,9 @@ with tab_ai:
                         "openai": "OpenAI GPT-4o-mini",
                         "gemini": "Gemini",
                     }.get(answer_obj.mode, answer_obj.mode)
-                    st.caption(f"Mode: {mode_label}")
+                    st.caption(f"Mode: {mode_label} · Decision support — advisory, human review required")
+                    if answer_obj.cost_note:
+                        st.caption(f"💰 {answer_obj.cost_note}")
                     st.session_state.chat_history.append(
                         {"role": "assistant", "content": answer_obj.answer}
                     )
@@ -783,6 +829,20 @@ real-time visibility into portfolio health, risks, sprint performance, OKR align
 
 ---
 
+### AI Governance — What the AI Layer Is
+
+| Principle | What it means here |
+|-----------|--------------------|
+| **Decision Support** | The AI recommends; it never executes a decision, escalation, or reassignment |
+| **Read-Only** | No write path to Monday or any data mutation exists in this system |
+| **Human-in-the-Loop** | Every score, risk, and answer requires human review before acting |
+| **Explainable** | Health/risk/OKR scores come from named, unit-tested rules — not the LLM |
+| **Advisory, not autonomous** | Free-text answers are labeled by mode (demo / OpenAI) and never override a business rule |
+
+See `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` for the full governance reference.
+
+---
+
 ### Data Source
 
 This project uses **realistic Monday-style local demo data** loaded from `data/monday_demo/`.
@@ -805,9 +865,9 @@ No other code changes are required.
 |------|-----------------|--------|
 | **Project Visibility** | Tasks, statuses, due dates | Health score, blockers, sprint progress |
 | **Risk Detection** | Blocked tasks, OKR gaps, capacity | Risk registry with mitigations |
-| **Sprint Insights** | Velocity, task distribution, team load | Sprint health, retro talking points |
-| **OKR Alignment** | Task-to-OKR mapping | At-risk OKRs, unaligned work |
-| **AI PMO Q&A** | All above + methodology docs | Natural language PM answers |
+| **Sprint Execution Control** | Velocity, carryover, blockers, capacity, bus factor | Sprint health, bottlenecks, retro talking points |
+| **OKR Alignment** | Task-to-OKR mapping, blocked work on at-risk OKRs | Aligned/unaligned work, delivery risk to strategy |
+| **AI PMO Q&A** | All above + methodology docs | Natural language PM answers (decision support only) |
 
 ---
 

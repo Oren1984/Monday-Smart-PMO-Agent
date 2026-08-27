@@ -27,6 +27,10 @@ Adding an OpenAI key enables AI-generated PMO answers instead of the rule-based 
    ```
 
 **Cost:** The AI assistant uses `gpt-4o-mini`. A typical demo session costs less than $0.01.
+Once enabled, each AI answer in the UI also shows a lightweight, advisory cost-awareness
+note (a rough per-query estimate, not billing data) so a PM has a budget expectation
+before relying on the OpenAI path — see `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md`
+Section 9.
 
 ---
 

@@ -162,6 +162,9 @@ class CapacityReport:
     owner_blocked_counts: dict = field(default_factory=dict)
     overloaded_owners: List[str] = field(default_factory=list)
     underloaded_owners: List[str] = field(default_factory=list)
+    # Bus factor / workload concentration: owners holding a disproportionate
+    # share of active story points — a single-point-of-failure delivery risk.
+    concentration_risk_owners: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -172,6 +175,9 @@ class OKRAlignmentReport:
     at_risk_okrs: List[PMOOKR] = field(default_factory=list)
     okr_task_map: dict = field(default_factory=dict)
     summary: str = ""
+    # At-risk/off-track OKRs whose contributing work includes blocked/stuck
+    # tasks — i.e. delivery execution risk that threatens a strategic objective.
+    okrs_with_delivery_risk: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -181,6 +187,8 @@ class PMOAnswer:
     sources: List[str] = field(default_factory=list)
     data_points: List[str] = field(default_factory=list)
     mode: str = "mock"                   # "mock" | "openai" | "gemini"
+    # Lightweight, advisory-only AI cost-awareness signal (not billing data).
+    cost_note: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------

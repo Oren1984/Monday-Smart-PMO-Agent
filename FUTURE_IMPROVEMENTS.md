@@ -2,7 +2,7 @@
 
 ## Project Status
 
-This project is currently **closed, stable, and should remain lean**. It runs fully in mock/demo mode with no API key or Monday account required, and 59/59 tests pass.
+This project is currently **closed, stable, and should remain lean**. It runs fully in mock/demo mode with no API key or Monday account required, and 73/73 tests pass.
 
 This document is a **future review list only**. It does not authorize implementation of anything listed below.
 

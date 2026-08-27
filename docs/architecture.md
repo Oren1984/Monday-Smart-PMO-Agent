@@ -68,9 +68,9 @@ Pure analysis logic. No UI dependencies. Each module accepts typed PMO DTOs and 
 |--------|-------|--------|
 | `project_health.py` | `List[PMOTask]`, optional `PMOSprint` | `ProjectHealthReport` |
 | `sprint_analyzer.py` | `PMOSprint`, `List[PMOTask]` | `SprintReport` |
-| `capacity_tracker.py` | `List[PMOTask]` | `CapacityReport` |
+| `capacity_tracker.py` | `List[PMOTask]` | `CapacityReport` (includes bus factor / workload-concentration flag) |
 | `risk_detector.py` | `List[PMORisk]`, optional analysis outputs | `List[PMORisk]` (sorted) |
-| `okr_analyzer.py` | `List[PMOOKR]`, `List[PMOTask]` | `OKRAlignmentReport` |
+| `okr_analyzer.py` | `List[PMOOKR]`, `List[PMOTask]` | `OKRAlignmentReport` (includes delivery-risk-to-strategy flag) |
 | `report_builder.py` | All analysis outputs | `Dict` (pmo_context) |
 
 ### Health Scoring
@@ -88,6 +88,28 @@ Healthy        — velocity >= 75%
 Needs Attention — velocity 50–74%
 At Risk        — velocity < 50%
 ```
+
+### Bus Factor / Workload Concentration
+
+```
+Concentration risk — an owner holds > 40% of total active story points
+```
+
+Matches `docs/methodology_docs/capacity_management.md` ("one person owns > 40% of
+sprint points → single point of failure"). Computed in `capacity_tracker.py`
+alongside the existing task-count overload threshold (>= 5 active tasks); it is a
+separate, additive signal — it does not replace or change the overload rule.
+
+### OKR Delivery Risk
+
+```
+Delivery risk to strategy — an At Risk/Off Track OKR has at least one
+contributing task in Blocked or Stuck status
+```
+
+Computed in `okr_analyzer.py`. This distinguishes "the KR number is behind
+schedule" from "sprint execution is actively blocked, which is why the KR number
+is behind schedule" — the latter is what a PM needs to act on first.
 
 ### Rule Thresholds vs. Methodology Reference Docs
 

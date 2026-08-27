@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Smart PMO Agent is built around recognized project management methodologies. Each feature maps to a specific PM practice.
+The Smart PMO Agent is built around recognized project management methodologies. Each feature maps to a specific PM practice. Sprint Health, Risk Management, and Capacity Management together form the **Sprint Execution Control** layer — the day-to-day view a Technology Project Manager / Delivery Manager uses to run a sprint; OKR Alignment connects that execution work back to business strategy.
 
 ---
 
@@ -40,6 +40,7 @@ The Smart PMO Agent is built around recognized project management methodologies.
 | Task-to-OKR mapping (`okr_link` field) | Strategic alignment of sprint work |
 | Unaligned work percentage | "OKR orphan" detection |
 | At-risk OKR flagging | Quarterly OKR health review |
+| `okrs_with_delivery_risk` — at-risk OKR + blocked/stuck contributing task | Execution risk escalating to strategic risk |
 | OKR in risk registry | OKR-driven risk escalation |
 
 ---
@@ -64,6 +65,7 @@ The Smart PMO Agent is built around recognized project management methodologies.
 | Overloaded owner detection (>= 5 active tasks) | Over-capacity alert |
 | Blocked task count per owner | Trapped capacity detection |
 | Bottleneck owner detection in sprint analysis | Single point of failure identification |
+| `concentration_risk_owners` — owner holding > 40% of active story points | Bus factor / truck factor detection |
 | Suggested redistribution in risk mitigations | Load balancing recommendations |
 
 ---

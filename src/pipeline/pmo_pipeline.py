@@ -15,6 +15,23 @@ from src.core.exceptions import AIQueryError, IngestionError
 from src.observability.metrics import METRICS
 from src.observability.tracing import timer
 
+# Advisory-only, order-of-magnitude cost estimate for a single gpt-4o-mini
+# PMO answer (short prompt + short completion). Not billing data — see
+# docs/api_keys_guide.md for the documented "<$0.01 per demo session" figure.
+_OPENAI_COST_PER_QUERY_USD = 0.002
+
+
+def _build_cost_note(mode: str) -> Optional[str]:
+    """Lightweight AI cost-awareness signal shown alongside an answer's mode."""
+    if mode == "openai":
+        return (
+            f"Estimated cost: ~${_OPENAI_COST_PER_QUERY_USD:.3f} for this query "
+            "(gpt-4o-mini, rough estimate — not billing data)."
+        )
+    if mode == "mock":
+        return "No API cost — running in offline demo mode."
+    return None
+
 
 class PMOPipeline:
     """
@@ -156,6 +173,7 @@ class PMOPipeline:
             sources=sources,
             data_points=data_points,
             mode=mode,
+            cost_note=_build_cost_note(mode),
         )
 
     @property
@@ -176,10 +194,12 @@ class PMOPipeline:
         client = OpenAI(api_key=self._openai_key)
 
         system_prompt = (
-            "You are an experienced PMO analyst assistant. "
-            "Answer the project manager's question using the project data and "
-            "methodology context provided. Be concise, practical, and action-oriented. "
-            "Use bullet points for multi-part answers. Prioritize what the PM needs to act on."
+            "You are an experienced PMO analyst assistant providing decision SUPPORT, "
+            "not decisions. Answer the project manager's question using the project data "
+            "and methodology context provided. Be concise, practical, and action-oriented. "
+            "Use bullet points for multi-part answers. Prioritize what the PM needs to act on. "
+            "Recommend actions for the human PM to approve — never state that an action has "
+            "been taken, scheduled, or decided on the PM's behalf."
         )
 
         project_summary = _format_context_for_prompt(ctx)
@@ -310,6 +330,7 @@ def _answer_okrs(ctx: Dict) -> str:
     okrs = ctx.get("okrs", [])
     at_risk = ctx.get("at_risk_okrs", [])
     unaligned = ctx.get("unaligned_work_pct", 0)
+    delivery_risk = ctx.get("okrs_with_delivery_risk", [])
     if not okrs:
         return "No OKR data available."
     lines = [f"**OKR Status — {len(okrs)} Objectives:**\n"]
@@ -318,6 +339,12 @@ def _answer_okrs(ctx: Dict) -> str:
         lines.append(f"- **{o['id']}**: {o['objective']} — {o['status']} ({avg:.0f}% avg KR progress)")
     if at_risk:
         lines.append(f"\n**At risk:** {', '.join(at_risk)}")
+    if delivery_risk:
+        lines.append(
+            f"\n**Delivery risk to strategy:** {', '.join(delivery_risk)} — "
+            "blocked/stuck sprint work is directly threatening these objectives, "
+            "not just a lagging KR target."
+        )
     if unaligned > 15:
         lines.append(f"\n**Warning:** {unaligned:.0f}% of active work has no OKR link.")
     return "\n".join(lines)
@@ -339,6 +366,13 @@ def _answer_focus(ctx: Dict) -> str:
         priority += 1
     if at_risk:
         lines.append(f"{priority}. **Review OKR recovery plan** for {', '.join(at_risk)}.")
+        priority += 1
+    delivery_risk = ctx.get("okrs_with_delivery_risk", [])
+    if delivery_risk:
+        lines.append(
+            f"{priority}. **Strategic risk:** {', '.join(delivery_risk)} is at risk *because* "
+            "of blocked sprint work — prioritize unblocking before general backlog items."
+        )
         priority += 1
     if bottlenecks:
         lines.append(f"{priority}. **Address bottleneck:** {', '.join(bottlenecks)} has multiple blocked tasks — "
@@ -372,15 +406,23 @@ def _answer_capacity(ctx: Dict) -> str:
     overloaded = ctx.get("overloaded_owners", [])
     task_counts = ctx.get("team_task_counts", {})
     blocked_counts = ctx.get("team_blocked_counts", {})
+    concentration_risk = ctx.get("concentration_risk_owners", [])
     lines = ["**Team capacity and workload:**\n"]
     for owner, count in task_counts.items():
         blocked = blocked_counts.get(owner, 0)
         flag = " ⚠️ OVERLOADED" if owner in overloaded else ""
+        flag += " 🚌 BUS FACTOR RISK" if owner in concentration_risk else ""
         blocked_str = f" ({blocked} blocked)" if blocked > 0 else ""
         lines.append(f"- {owner}: {count} active tasks{blocked_str}{flag}")
     if overloaded:
         lines.append(f"\n**Action:** {', '.join(overloaded)} should be priority focus for "
                      "blocker resolution or task redistribution.")
+    if concentration_risk:
+        lines.append(
+            f"\n**Bus factor warning:** {', '.join(concentration_risk)} each hold over 40% "
+            "of active story points — a single point of failure if they become unavailable. "
+            "Consider pairing or knowledge-sharing to spread this work."
+        )
     return "\n".join(lines)
 
 
@@ -431,7 +473,11 @@ def _format_context_for_prompt(ctx: Dict) -> str:
         f"Blockers: {len(ctx.get('open_blockers', []))} open",
         f"Risks: {ctx.get('risk_count', 0)} open | Critical: {', '.join(ctx.get('critical_risks', [])) or 'None'}",
         f"OKRs at risk: {', '.join(ctx.get('at_risk_okrs', [])) or 'None'}",
+        f"OKRs with delivery risk (blocked/stuck contributing work): "
+        f"{', '.join(ctx.get('okrs_with_delivery_risk', [])) or 'None'}",
         f"Overloaded owners: {', '.join(ctx.get('overloaded_owners', [])) or 'None'}",
+        f"Bus factor / workload concentration risk: "
+        f"{', '.join(ctx.get('concentration_risk_owners', [])) or 'None'}",
         f"Unaligned work: {ctx.get('unaligned_work_pct', 0):.0f}%",
     ]
     return "\n".join(lines)

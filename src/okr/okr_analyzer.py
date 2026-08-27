@@ -26,8 +26,9 @@ def analyze_okr_alignment(okrs: List[PMOOKR], tasks: List[PMOTask]) -> OKRAlignm
     unaligned_pct = round((len(unaligned) / total_active * 100), 1) if total_active > 0 else 0.0
 
     at_risk = [o for o in okrs if o.status in ("At Risk", "Off Track")]
+    delivery_risk = _find_delivery_risk_okrs(at_risk, okr_task_map)
 
-    summary = _build_summary(okrs, unaligned, unaligned_pct, at_risk)
+    summary = _build_summary(okrs, unaligned, unaligned_pct, at_risk, delivery_risk)
 
     return OKRAlignmentReport(
         okrs=okrs,
@@ -36,7 +37,22 @@ def analyze_okr_alignment(okrs: List[PMOOKR], tasks: List[PMOTask]) -> OKRAlignm
         at_risk_okrs=at_risk,
         okr_task_map=okr_task_map,
         summary=summary,
+        okrs_with_delivery_risk=delivery_risk,
     )
+
+
+def _find_delivery_risk_okrs(at_risk: List[PMOOKR], okr_task_map: dict) -> List[str]:
+    """
+    Identify at-risk/off-track OKRs whose contributing work is also stalled
+    (blocked/stuck) — i.e. sprint execution problems are actively threatening
+    a strategic objective, not just a KR target that is behind on paper.
+    """
+    flagged = []
+    for okr in at_risk:
+        contributing = okr_task_map.get(okr.id, [])
+        if any(t.status in ("Blocked", "Stuck") for t in contributing):
+            flagged.append(okr.id)
+    return flagged
 
 
 def get_okr_avg_kr_progress(okr: PMOOKR) -> float:
@@ -47,13 +63,19 @@ def get_okr_avg_kr_progress(okr: PMOOKR) -> float:
 
 
 def _build_summary(okrs: List[PMOOKR], unaligned: List[PMOTask],
-                   unaligned_pct: float, at_risk: List[PMOOKR]) -> str:
+                   unaligned_pct: float, at_risk: List[PMOOKR],
+                   delivery_risk: List[str]) -> str:
     parts = []
     if at_risk:
         names = ", ".join(o.id for o in at_risk)
         parts.append(f"{len(at_risk)} OKR(s) at risk or off track: {names}.")
     else:
         parts.append("All OKRs on track.")
+    if delivery_risk:
+        parts.append(
+            f"Sprint execution risk is actively threatening {len(delivery_risk)} "
+            f"objective(s): {', '.join(delivery_risk)} (blocked/stuck contributing work)."
+        )
     if unaligned_pct > 20:
         parts.append(
             f"{unaligned_pct:.0f}% of active work is not linked to any OKR. "

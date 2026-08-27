@@ -68,9 +68,9 @@ Produced by transparent, hardcoded Python business rules:
 |---|---|
 | Project health score (Green/Yellow/Red) | `src/pmo/project_health.py` |
 | Sprint health (Healthy / Needs Attention / At Risk) | `src/pmo/sprint_analyzer.py` |
-| Capacity / overload detection | `src/pmo/capacity_tracker.py` |
+| Capacity / overload detection, bus factor (workload concentration > 40%) | `src/pmo/capacity_tracker.py` |
 | Risk severity ordering | `src/risk/risk_detector.py` |
-| OKR alignment and unaligned-work percentage | `src/okr/okr_analyzer.py` |
+| OKR alignment, unaligned-work percentage, delivery risk to strategy (at-risk OKR + blocked contributing work) | `src/okr/okr_analyzer.py` |
 
 These are unit-tested (`tests/unit/`), independent of any LLM, and are the
 authoritative source for every score and status shown in the UI. See
@@ -159,7 +159,7 @@ What actually exists today, verified against the code:
 | Latency tracking (`embedding_latency_seconds`, `retrieval_latency_seconds`, `rerank_latency_seconds`) | `src/observability/metrics.py` | No | In-memory only | Same as above — internal instrumentation, not surfaced |
 | Readiness checks (`check_health()` / `HealthStatus`) | `src/observability/health.py` | No | Computed on call, not persisted | Not imported or called anywhere in `app/streamlit_app.py` — a standalone utility available for a future health surface, not currently wired in |
 | Error logging | `src/core/logging_config.py`, standard Python logging | No dedicated UI panel; visible in terminal/console where Streamlit runs | Not persisted | `prompt_safety.py` warnings and pipeline exceptions log through this |
-| Test results | `pytest` (59 tests) | No | Run on demand | The nearest thing to a "status board" this project has — green tests are the health signal |
+| Test results | `pytest` (73 tests) | No | Run on demand | The nearest thing to a "status board" this project has — green tests are the health signal |
 
 **There is no "System Status" tab or equivalent in the UI.** The 7 real tabs are
 Executive Dashboard, Sprint Health, Risks & Blockers, OKR Alignment, Capacity, AI PMO
@@ -184,7 +184,7 @@ What exists:
 - The `METRICS` counters and latencies described above (internal only)
 - Deterministic, human-readable rule outputs (health scores, risk explanations) that
   trace directly to named functions in `src/pmo/`, `src/risk/`, `src/okr/`
-- 59 passing tests (`tests/unit/`, `tests/integration/`, `tests/e2e/`) that document
+- 73 passing tests (`tests/unit/`, `tests/integration/`, `tests/e2e/`) that document
   expected behavior for every analysis module
 - Traceable calculations — every score in the UI can be walked back to a specific
   Python function and its unit test
@@ -243,6 +243,16 @@ has a one-hop path back to the exact line of code that produced it.
 **If `OPENAI_API_KEY` is set (optional):** the AI assistant uses `gpt-4o-mini`. Per
 `docs/api_keys_guide.md`, a typical demo session costs under $0.01. This is the only
 place in the project where real-world cost can be incurred, and it is opt-in.
+
+**In-app cost-awareness signal (management-level, advisory only):** every `PMOAnswer`
+returned by `PMOPipeline.query()` (`src/pipeline/pmo_pipeline.py`) carries a `cost_note`
+field — "No API cost — running in offline demo mode" in mock mode, or a rough
+per-query order-of-magnitude estimate (`_OPENAI_COST_PER_QUERY_USD`, currently $0.002)
+when the OpenAI path is active. The Streamlit sidebar and AI PMO Assistant tab surface
+this alongside the response mode. This is a **hardcoded constant used for an advisory
+label**, not metered usage tracking, a budget enforcement mechanism, or billing
+integration — it exists so a PM sees a budget expectation before enabling the OpenAI
+path, nothing more.
 
 **Future cost controls — required only if live integration is ever approved:**
 
