@@ -1,344 +1,142 @@
 # Monday Smart PMO Agent
 
-**Oren Salami | Technology Project Management + AI Tools**
+**Oren Salami** · Category: **Project Planning & Delivery**
 
-AI-Powered PMO Assistant for Project Visibility, Risk Monitoring and Strategic Alignment.
+A local decision-support tool that reads Monday-style project data and turns it into a
+delivery picture: project health, sprint progress, risks and blockers, team load, and
+OKR alignment — plus a Q&A assistant for plain-language questions. It suggests; a person
+decides.
 
-> **Status: Closed and stable.** This is a completed, portfolio-ready mock/demo project.
-> It runs entirely offline with deterministic PMO rules and an optional AI Q&A layer —
-> see `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` for the full governance posture.
-
----
-
-## Project Overview
-
-**Smart PMO Agent = Execution Intelligence / Execution Control during project delivery.**
-
-The **Monday Smart PMO Agent** connects to Monday-style project data and answers the questions every PM and PMO stakeholder needs answered:
-
-- What is the current portfolio status?
-- Which tasks are blocking the sprint?
-- Which OKRs are at risk — and is blocked sprint work actively threatening one of them?
-- Who is overloaded, and does the team have a bus factor / single-point-of-failure risk?
-- What should I focus on this week?
-- What should we discuss in the retrospective?
-
-This is not a generic chatbot. It is a purpose-built execution-control layer for a
-Technology Project Manager / Delivery Manager — grounded in real Agile, Scrum, Sprint
-Ops, OKR, and capacity management methodology. It demonstrates the ability to read
-sprint health, delivery risk, team capacity, and strategic alignment **without**
-replacing the human project manager — see [Human-in-the-Loop](#human-in-the-loop).
-
-This is a **Technology Project Management / AI Delivery learning and portfolio
-project** — not an enterprise commercial product. See
-[What This Project Intentionally Does NOT Include](#what-this-project-intentionally-does-not-include).
+> **Status:** completed demo/portfolio project. It runs offline on fictional demo data.
+> Live Monday integration is a planned extension, not a working feature.
 
 ---
 
-## Monday Integration
+## Why This Project
 
-**Current version uses realistic local Monday-style demo data.**
+Delivery problems usually show up in the data before anyone names them: a sprint that is
+behind plan, a blocked task holding up an objective, one person carrying too much work.
+This project shows how those signals can be pulled together into one view so the people
+planning and monitoring the work see them early — without handing decisions to a tool.
 
-The architecture includes a clean adapter layer (`src/integrations/`) that decouples the data source from the analysis engine. Switching from demo data to a live Monday workspace requires only one configuration change:
+## What It Does
 
-```
-PMO_DATA_SOURCE=monday_api
-```
+| Area | What you get |
+|------|--------------|
+| Project health | Green / Yellow / Red score, status counts, overdue tasks, active blockers |
+| Sprint monitoring | Progress vs. plan, sprint health, carryover risk, retrospective talking points |
+| Risk visibility | Risk register sorted by severity, with mitigations and affected OKRs |
+| Team load | Per-person tasks and points, overload and workload-concentration flags |
+| OKR alignment | Key-result progress, at-risk objectives, unaligned work, blocked work threatening an OKR |
+| Q&A assistant | Answers questions from the analysis results — rule-based by default, OpenAI optional |
+| Exports | Health report (`.md`), sprint summary (`.csv`), risk register (`.csv`) |
 
-No other code changes are required. See `docs/architecture.md` for the full design.
+What is working, mocked, optional, or planned: [Project Overview](docs/PROJECT_OVERVIEW.md)
+and [Integration Status](docs/ARCHITECTURE.md#integration-status).
 
-> This project currently uses realistic Monday-style mock data instead of a live Monday account.
-> The architecture is intentionally prepared for future Monday API integration through an adapter/client layer.
-> This keeps the project lightweight while still demonstrating real PMO integration thinking.
+## How It Works
 
----
-
-## Monday Demo Environment
-
-A real Monday.com account was created for demo validation and environment readiness.
-
-**Board created:** Monday Smart PMO Agent — Project Board
-
-| Group | Contents |
-|-------|---------|
-| Sprint 1 — Core PMO Dashboard | Core dashboard tasks |
-| Backlog | AI Assistant & Reports tasks |
-| Sprint 2 — GitHub & Documentation | Documentation tasks |
-
-Screenshots of the board are available under `docs/screenshots/`:
-
-**Sprint Overview:**
-
-![Monday Smart PMO Agent — Sprint Overview](docs/screenshots/01-monday-project-board-sprints-overview.png)
-
-**AI Reports Backlog:**
-
-![Monday Smart PMO Agent — AI Reports Backlog](docs/screenshots/02-monday-project-board-ai-reports-backlog.png)
-
-> The real Monday board validates that the project is structurally ready for live Monday API integration.
-> The Streamlit app continues to run in mock/demo mode — no Monday account is needed to run the project.
-
----
-
-## Core Capabilities
-
-| Capability | Input | Output |
-|-----------|-------|--------|
-| **Portfolio Visibility** | Tasks, sprints, statuses, due dates | Health score, blockers, sprint progress |
-| **Risk Monitoring** | Blocked tasks, OKR gaps, capacity signals | Risk registry with severities and mitigations |
-| **Sprint Execution Control** | Sprint tasks, velocity, carryover, team distribution | Sprint health, bottlenecks, bus factor risk, retro talking points |
-| **OKR Alignment** | Tasks with OKR links, OKR registry, blocked contributing work | Aligned/unaligned work, at-risk objectives, delivery risk to strategy |
-| **Executive Summary** | Portfolio-wide health, risks, OKRs | PMO-level summary with recommended actions |
-| **AI PMO Q&A** | Natural language question + project context | Contextual, advisory PM answer with methodology grounding and a cost-awareness note |
-
----
-
-## Human-in-the-Loop
-
-The Monday Smart PMO Agent supports PMO decision-making but does not replace human judgment.
-
-The agent detects risks, summarizes information, highlights gaps, and suggests actions. A human PM, PMO lead, or engineering manager must approve decisions, escalations, reprioritization, and delivery changes.
-
-| The agent DOES | The agent does NOT |
-|---------------|-------------------|
-| Detect risk signals | Make delivery decisions |
-| Summarize sprint status | Approve or reject work |
-| Highlight OKR gaps | Replace the PM or PMO role |
-| Suggest follow-up actions | Automatically escalate issues |
-| Surface team overload | Reassign tasks autonomously |
-
-See `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` for the full governance principles.
-
----
-
-## Architecture
-
-```
-data/monday_demo/*.json
-        ↓
-src/integrations/monday_mock_client.py  ← Active (adapter pattern)
-src/integrations/monday_api_client.py   ← Future skeleton (env-var driven)
-        ↓
-src/pmo/  src/risk/  src/okr/  src/reporting/
-        ↓
-src/pipeline/pmo_pipeline.py  ←  RAG + AI Q&A layer
-        ↓
-app/streamlit_app.py  ← 7-tab PMO dashboard
+```mermaid
+flowchart LR
+    A["Demo data<br/>tasks, sprints, risks, OKRs"] --> B["Data adapter<br/>mock client"]
+    B --> C["Rule-based analysis<br/>health, sprint, risk,<br/>capacity, OKR"]
+    C --> D["Dashboard tabs<br/>and exports"]
+    C --> E["Q&A assistant<br/>rule-based or OpenAI"]
+    M["Methodology notes"] -.-> E
+    D --> H{"Human review<br/>PM / delivery lead"}
+    E --> H
+    H --> I["Decisions and actions<br/>taken outside the tool"]
 ```
 
----
+All scores come from fixed, unit-tested Python rules. The assistant only explains those
+results; it cannot change them. Details: [Architecture](docs/ARCHITECTURE.md).
 
-## Security Note
+## Project in Pictures
 
-- `.env` is **never committed** — it is listed in `.gitignore`
-- `.env.example` contains only safe placeholders (no tokens, no credentials)
-- `MONDAY_API_TOKEN`, `OPENAI_API_KEY`, and `GEMINI_API_KEY` must never be hardcoded in source files
-- All API keys and credentials are read from environment variables at runtime only
-- The default mode (`PMO_DATA_SOURCE=mock`) requires no credentials of any kind
+**Application screenshots** — captured from the local Streamlit app in demo mode
+(fictional data):
 
----
+![Executive Dashboard showing Yellow project health, Sprint 7 at 37% and At Risk, task status distribution, and OKR status](docs/screenshots/03-app-executive-dashboard.png)
+*Executive Dashboard: overall health, sprint progress, task status, OKR status, and active blockers.*
 
-## How to Run
+![Risks and Blockers tab showing an overall Critical risk level and the risk register sorted by severity](docs/screenshots/04-app-risks-and-blockers.png)
+*Risks & Blockers: severity counts and the risk register, with the critical OKR-2 risk expanded.*
 
-**Clone and install:**
+**External-service screenshots** — a Monday.com board used to plan and track the work of
+building this project. The app does not read this board.
+
+![Monday.com board with Sprint 1 and Sprint 2 groups for this project](docs/screenshots/01-monday-project-board-sprints-overview.png)
+*Monday.com: sprint groups for this project's own build tasks.*
+
+![Monday.com board backlog group with AI assistant and reporting tasks](docs/screenshots/02-monday-project-board-ai-reports-backlog.png)
+*Monday.com: backlog of assistant and reporting tasks.*
+
+## Example Workflow
+
+Using the bundled demo data (fictional company TechCo, 40 tasks, 4 sprints, 8 risks, 4 OKRs):
+
+1. **Check health** — the dashboard shows **Yellow**: Sprint 7 is 37% complete (22 of 60
+   points) and 5 tasks are stuck or blocked.
+2. **Look at the sprint** — Sprint Health rates Sprint 7 **At Risk** and lists retro talking points.
+3. **Review risks** — overall risk level is **Critical**; the top item is OKR-2 (Reduce
+   Churn), whose key dependency has been blocked for 3 days.
+4. **Check alignment** — OKR-1 and OKR-2 are at risk, and both have blocked or stuck
+   contributing work; about 17% of active work is not linked to an OKR.
+5. **Check team load** — Dan K. and Lior H. are flagged as overloaded.
+6. **Ask and export** — ask "What should I focus on this week?", then export the health report.
+7. **Decide** — the reviewer decides what to escalate, re-plan, or reassign.
+
+Overdue counts are calculated against today's date, so with this static data they rise over
+time. More scenarios: [Demo and Operations](docs/DEMO_AND_OPERATIONS.md#demo-scenarios).
+
+## Architecture at a Glance
+
+| Layer | Location |
+|-------|----------|
+| Data adapter (mock active, Monday API placeholder) | `src/integrations/` |
+| Analysis rules | `src/pmo/`, `src/risk/`, `src/okr/` |
+| Context and exports | `src/reporting/` |
+| Q&A pipeline (retrieval over methodology notes) | `src/pipeline/` |
+| UI (7 tabs) | `app/streamlit_app.py` |
+
+Python 3.11 · Streamlit · ChromaDB · Pydantic Settings. See [Architecture](docs/ARCHITECTURE.md).
+
+## Run Locally
+
 ```bash
-git clone https://github.com/Oren1984/smart-pmo-agent.git
-cd smart-pmo-agent
+git clone https://github.com/Oren1984/Monday-Smart-PMO-Agent.git
+cd Monday-Smart-PMO-Agent
 python -m venv .venv
-.venv\Scripts\activate        # Windows
+.venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # macOS / Linux
 pip install -r requirements.txt
 cp .env.example .env
-```
-
-**Run the Streamlit UI:**
-```bash
 streamlit run app/streamlit_app.py
 ```
 
-Open: http://localhost:8501
+Open http://localhost:8501. No API key or Monday account is needed.
 
-No API key, Monday account, or external service is required.
+With Docker (after creating `.env`): `docker compose up --build`, then open http://localhost:8511.
 
-**Run with Docker:**
-```bash
-docker compose up --build
-```
+Configuration and troubleshooting: [Demo and Operations](docs/DEMO_AND_OPERATIONS.md).
 
-Open: http://localhost:8511
+## Human Review & Boundaries
 
----
+- Read-only: the tool never changes tasks, statuses, or Monday data.
+- Advisory: it flags and suggests; it does not approve, escalate, or reassign anything.
+- Every decision, escalation, and re-plan is made by a person.
+- Credentials come only from environment variables; `.env` is not committed.
+- Not included: live Monday sync, multi-user access, cloud deployment, or production hardening.
 
-## Streamlit UI Tabs
+Full detail: [Governance and Validation](docs/GOVERNANCE_AND_VALIDATION.md).
 
-| Tab | Contents | Export |
-|-----|---------|--------|
-| Executive Dashboard | Health score, status distribution, sprint progress, OKR summary, blockers | Health Report (.md) |
-| Sprint Health | Velocity, carryover risk, task breakdown, team load, retro talking points | Sprint Summary (.csv) |
-| Risks & Blockers | Risk registry by severity, blocked task detail table | Risk Registry (.csv) |
-| OKR Alignment | Per-OKR KR progress, contributing tasks, unaligned work, delivery risk to strategy | — |
-| Capacity | Per-owner task/point distribution, overload detection, bus factor / workload concentration risk | — |
-| AI PMO Assistant | Natural language Q&A — demo mode (no key) or OpenAI, with a cost-awareness note per answer | — |
-| About | Project explanation, AI governance pillars, architecture, demo guide | — |
+## Documentation & Validation
 
----
+| Document | Covers |
+|----------|--------|
+| [Project Overview](docs/PROJECT_OVERVIEW.md) | Problem, purpose, capabilities, workflow, example |
+| [Architecture](docs/ARCHITECTURE.md) | Components, data flow, rules, integration status |
+| [Demo and Operations](docs/DEMO_AND_OPERATIONS.md) | Setup, configuration, demo scenarios, troubleshooting |
+| [Governance and Validation](docs/GOVERNANCE_AND_VALIDATION.md) | Oversight, security, testing, limitations, future work |
 
-## AI PMO Assistant
-
-The AI assistant works in two modes:
-
-| Mode | When | Quality |
-|------|------|---------|
-| **Demo mode** (default) | No OpenAI key — fully offline | Smart rule-based answers from live project data |
-| **AI mode** | `OPENAI_API_KEY` set in `.env` | Full AI answers grounded in methodology docs + project data |
-
-Both modes answer questions about project status, blockers, OKRs, capacity, sprint health, and retrospective preparation.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| UI | Streamlit |
-| Integration | Adapter pattern (mock / Monday API) |
-| PMO Analysis | Python (custom engine) |
-| AI Q&A | RAG — ChromaDB + OpenAI / rule-based |
-| Embeddings | Mock (default) · HuggingFace · OpenAI |
-| Vector Store | ChromaDB |
-| Config | Pydantic Settings + python-dotenv |
-| Packaging | Docker + Docker Compose |
-| Language | Python 3.11 |
-
----
-
-## Demo Data
-
-The project ships with a realistic Monday-style demo dataset for a fictional company **TechCo** building a SaaS product **FlowHQ**:
-
-| Entity | Count | Details |
-|--------|-------|---------|
-| Boards | 2 | Product Development, Platform & Infrastructure |
-| Tasks | 40 | Across 4 sprints + backlog, 8 team members, 4 OKRs |
-| Sprints | 4 | Sprints 5–8 (1 active, 2 completed, 1 planned) |
-| OKRs | 4 | Onboarding (At Risk), Churn (Off Track), Infrastructure (On Track), Team Health (On Track) |
-| Risks | 8 | 1 Critical, 3 High, 3 Medium, 1 Low |
-| Team | 8 | Yael M., Dan K., Oren S., Maya R., Lior H., Tali G., Ron A., Noa T. |
-
-All data is local, fictional, and requires no account or internet connection.
-
----
-
-## Export Reports
-
-Three export options are available directly from the Streamlit dashboard:
-
-| Export | Tab | Format |
-|--------|-----|--------|
-| Project Health Report | Executive Dashboard | Markdown (.md) |
-| Sprint Summary | Sprint Health | CSV (.csv) |
-| Risk Registry | Risks & Blockers | CSV (.csv) |
-
-All exports are local — no data leaves your machine.
-
----
-
-## Running Tests
-
-```bash
-pytest                          # full suite (73 tests)
-pytest tests/unit/              # unit tests only
-pytest tests/integration/       # integration tests
-pytest tests/e2e/               # end-to-end flow
-pytest --cov=src                # with coverage
-```
-
-All tests run in mock mode — no API key or Monday account required.
-
----
-
-## Static Portfolio Site
-
-```bash
-cd static-site
-python -m http.server 8000
-```
-
-Open: http://localhost:8000
-
----
-
-## Project Structure
-
-```
-Monday-Smart-PMO-Agent/
-├── app/streamlit_app.py          # Main UI (7-tab Streamlit dashboard)
-├── src/
-│   ├── core/                     # Config, contracts, exceptions
-│   ├── integrations/             # Monday adapter layer (mock + future API)
-│   ├── pmo/                      # PMO analysis engine
-│   ├── risk/                     # Risk detection
-│   ├── okr/                      # OKR alignment analysis
-│   ├── pipeline/                 # RAG / AI Q&A pipeline
-│   ├── reporting/                # Exports and report building
-│   └── observability/            # Metrics and tracing
-├── data/
-│   ├── monday_demo/              # Local JSON demo data (40 tasks, 4 OKRs, 8 risks)
-│   └── methodology_docs/         # PM methodology knowledge base (Agile, OKR, etc.)
-├── docs/                         # Architecture, governance, demo scripts, scenarios
-├── static-site/                  # Portfolio landing page (HTML/CSS/JS)
-└── tests/                        # Unit, integration, e2e test suite
-```
-
----
-
-## Documentation
-
-| Document | Contents |
-|----------|---------|
-| `docs/architecture.md` | System design and data flow |
-| `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` | Governance, Human-in-the-Loop, security, monitoring, observability, auditability, cost, privacy |
-| `docs/evaluation_scenarios.md` | Demo and evaluation scenarios |
-| `docs/methodology_alignment.md` | Agile, Scrum, OKR, sprint ops mapping |
-| `docs/demo_flow.md` | How to demo and present the project |
-| `docs/testing.md` | Testing approach and coverage |
-| `docs/known_limitations.md` | What is demo data, what is not, what is next |
-| `docs/api_keys_guide.md` | Setup guide for all configuration options |
-
----
-
-## What This Project Intentionally Does NOT Include
-
-This project is intentionally right-sized for a demo-ready PMO assistant. The following are excluded by design:
-
-- **No real MCP implementation** — no Model Context Protocol server at this stage
-- **No multi-agent architecture** — a single AI assistant is sufficient for this scope
-- **No production cloud deployment** — demo mode runs locally with no cloud dependencies
-- **No automatic decision-making** — human approval is always required for escalations and changes
-- **No heavy security framework** — appropriate governance is noted in docs; production hardening is future work
-- **No unnecessary CI/CD** — tests run locally; a CI pipeline is a future extension
-- **No replacement for PM/PMO human judgment** — the agent assists, it does not decide
-
----
-
-## Project Category
-
-**Technology Project Management + AI Tools**
-
-This project demonstrates practical AI application for project management — not pure AI/ML engineering. It shows how to build a PMO assistant that helps a PM improve portfolio visibility, detect risks earlier, align work to strategic goals, and answer natural language questions about project status.
-
----
-
-## Responsible AI Statement
-
-The Monday Smart PMO Agent supports PMO decisions — it does not replace human judgment.
-
-The agent detects signals, summarizes data, and suggests actions. A qualified PM, PMO lead, or engineering manager must review, validate, and approve all decisions before acting. No escalation, reprioritization, or delivery change should be made based solely on agent output without human review.
-
-See `docs/GOVERNANCE_SECURITY_OBSERVABILITY.md` for the full governance and Human-in-the-Loop principles.
-
----
-
-## License
-
-MIT License. See the LICENSE file for details.
+`pytest` runs 73 unit, integration, and end-to-end tests offline in mock mode.
